@@ -1,0 +1,9 @@
+
+struct List {} ;
+
+struct List { let value : Int; };
+
+struct List { let value1 : ~>~Int; };
+
+struct List { let value1 : Int; 
+              let value2 : String; };

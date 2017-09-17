@@ -1,0 +1,74 @@
+//
+//  nice.c
+//  Lists
+//
+//  Created by zephyz on 10.09.17.
+//  Copyright © 2017 zephyz. All rights reserved.
+//
+
+struct List { let value: Int;
+              let tail: List; };
+
+let reduce : >List , ~Int -> (Int , Int -> Int) =
+    ls acc op {
+        let curr : ~>List = acc
+        while curr != NULL {
+            acc = op(ls>.value, acc);
+            curr = curr>tail;
+        }
+        acc;
+    };
+
+let length : >List -> Int = ls { reduce(ls, 0, _ acc { acc + 1 }) };
+
+
+let createList: >~>List , Int -> () = dest size {
+    while size > 0 {
+        let node : >~List = allocate(List);
+        node>.value = 0;
+        node>.tail = dest>;
+        dest> = node;
+        size -= 1;
+    };
+};
+
+let deleteList : >>List -> () = ls {
+    let curr : ~>List = ls>;
+    while curr != NULL {
+        let next : >List = curr>.tail
+        free(curr);
+        curr = next;
+    };
+    ls> = NULL;
+};
+
+let map: >~List , >~List , (Int -> Int) -> () =
+    source dest op {
+        let current : ~>List = source
+        let destMut : ~>List = dest
+        while current != NULL {
+            dest>.value = op(current>.value)
+            current = courrent>.tail
+            destMut = dest>.tail;
+        };
+    };
+
+let stackMap : >List , (Int -> Int) -> >List = ls op {
+    
+};
+
+let main: Int , >>~Char -> Int = argc argv {
+
+    let thd = List(3, NULL);
+    let snd = List(2, >thd);
+    let fst = List(1, >snd);
+
+    let result : >List = stackMap(>fst, e { e * 2 });
+
+    let empty : >List = NULL;
+    createList(>empty, 10);
+    println("%d", length(empty));
+    deleteList(>empty);
+    println("%d", length(empty));
+    0;
+};

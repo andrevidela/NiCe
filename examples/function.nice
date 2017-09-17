@@ -1,0 +1,13 @@
+
+let val : List = value;
+let val : ~List = { } ;
+let fn : ( () -> () ) = arg { } ;
+let reduce : (>List , ~Int -> (Int , Int -> Int)) =
+    ls acc op {
+        let curr : ~>List = acc;
+        //while curr != null {
+           // acc = op(ls>.value, acc);
+            curr = curr>;
+        //};
+        acc;
+    };
