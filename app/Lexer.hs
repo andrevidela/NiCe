@@ -10,6 +10,7 @@ import Data.Char (isLetter, isDigit, isSpace)
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec hiding (token, tokens, runParser)
 import Control.Applicative ((<*), (*>), (<$>), (<*>))
+import Control.Monad ((>>=))
 
 type TokenPos = (Token, SourcePos)
 
@@ -20,6 +21,7 @@ data Token = If
            | Let
            | EqualSign
            | Whitespace
+           | EOL
            | LParen
            | RParen
            | LBrack
@@ -28,15 +30,20 @@ data Token = If
            | RBrace
            | Struct
            | Enum
+           | Case
            | Semi
            | Colon
            | Dot
+           | Comma
            | RightArrow
            | WavyMut
            | DoubleQuote
            | SingleQuote
            | Identifier String
            | Operator String
+           | TPrefix String
+           | TInfix String
+           | TPostfix String
                deriving (Show, Eq)
 
 parseOp :: Parser TokenPos
@@ -55,6 +62,8 @@ parseID = parsePos $ do
 parsePos :: Parser Token -> Parser TokenPos
 parsePos p = (,) <$> p <*> getPosition
 
+eolToken :: Parser TokenPos
+eolToken = parsePos $ many1 (char '\n') >> return EOL
 whitespace :: Parser TokenPos
 whitespace = parsePos $ (many1 space) >> return Whitespace
 
@@ -82,12 +91,16 @@ structToken :: Parser TokenPos
 structToken = parsePos $ string "struct" >> return Struct
 enumToken :: Parser TokenPos
 enumToken = parsePos $ string "enum" >> return Enum
+caseToken :: Parser TokenPos
+caseToken = parsePos $ string "case" >> return Case
 semiToken :: Parser TokenPos
 semiToken = parsePos $ string ";" >> return Semi
 colonToken :: Parser TokenPos
 colonToken = parsePos $ string ":" >> return Colon
 dotToken :: Parser TokenPos
 dotToken = parsePos $ string "." >> return Dot
+commaToken :: Parser TokenPos
+commaToken = parsePos $ string "," >> return Comma
 rightArrowToken :: Parser TokenPos
 rightArrowToken = parsePos $ string "->" >> return RightArrow
 wavyMutToken :: Parser TokenPos
@@ -103,17 +116,18 @@ parseSpace = parsePos $ (many1 space) *> return Whitespace
 
 token :: Parser TokenPos
 token = choice
-    [ parseSpace
-    , ifToken
-    , thenToken
-    , try elseToken <|> enumToken
-    , letToken
+    [ eolToken
+    , parseSpace
+    , try ifToken <|> parseID
+    , try thenToken <|> parseID
+    , try elseToken <|> enumToken <|> parseID
+    , try letToken <|> parseID
     , eqToken
     , lbrack
     , rbrack
     , lbrace
     , rbrace
-    , structToken
+    , try structToken <|> parseID
     , semiToken
     , colonToken
     , dotToken
@@ -127,8 +141,37 @@ token = choice
 tokens :: Parser [TokenPos]
 tokens = many token
 
-tokenize :: SourceName -> String -> Either ParseError [TokenPos]
-tokenize = runParser tokens ()
+mapOperators :: [Token] -> [Token]
+mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
+mapOperators (Whitespace : (Operator str) : rest) = (TPostfix str) : (mapOperators $ Whitespace : rest)
+mapOperators ((Operator str) : Whitespace : rest) = (TPrefix str) : (mapOperators rest)
+mapOperators (x : xs) = x : (mapOperators xs)
+mapOperators [] = []
 
-main :: IO ()
-main = putStrLn "hello parser"
+removeWhitespace :: [Token] -> [Token]
+removeWhitespace ls = filter (/=Whitespace) ls
+
+padWhitespace :: [Token] -> [Token]
+padWhitespace ls = (Whitespace : ls) ++ [Whitespace]
+ 
+
+liftPair :: (a -> b) -> (a, c) -> (b, c)
+liftPair fn (f, s) = (fn f, s)
+
+infixl 8 |>
+(|>) :: a -> (a -> b) -> b
+(|>) a f = f a
+
+helper :: Monad m => (m a -> m b) -> (a, c) -> m (b, c)
+helper fn (f, s) = fmap (\b -> (b, s)) $  fn (return f)
+
+liftPairM :: Monad m => (m a -> m b) -> m (a, c) -> m (b, c)
+liftPairM fn pair = pair >>= (helper fn)
+
+tokenize :: SourceName -> String -> Either ParseError [Token]
+tokenize name text = do result <- parse name text 
+                        let tokens = map fst result
+                        return $ cleanup tokens
+  where 
+    parse = runParser tokens ()
+    cleanup = removeWhitespace . mapOperators . padWhitespace
