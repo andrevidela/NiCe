@@ -18,7 +18,7 @@ type TokenPos = (Token, SourcePos)
 data Token = If
            | Then
            | Else
-           | Let
+           | TLet
            | EqualSign
            | Whitespace
            | EOL
@@ -29,7 +29,7 @@ data Token = If
            | LBrace
            | RBrace
            | Struct
-           | Enum
+           | TEnum
            | Case
            | Semi
            | Colon
@@ -39,7 +39,7 @@ data Token = If
            | WavyMut
            | DoubleQuote
            | SingleQuote
-           | Identifier String
+           | TIdent String
            | Operator String
            | TPrefix String
            | TInfix String
@@ -54,7 +54,7 @@ parseID :: Parser TokenPos
 parseID = parsePos $ do
                      i <- firstChar 
                      n <- many nonFirstChar
-                     return (Identifier (i : n))
+                     return (TIdent (i : n))
   where
     firstChar = letter <|> char '_'
     nonFirstChar = digit <|> char '\'' <|> firstChar
@@ -74,7 +74,7 @@ thenToken = parsePos $ string "then" >> return Then
 elseToken :: Parser TokenPos
 elseToken = parsePos $ string "else" >> return Else
 letToken :: Parser TokenPos
-letToken = parsePos $ string "let" >> return Let
+letToken = parsePos $ string "let" >> return TLet
 eqToken :: Parser TokenPos
 eqToken = parsePos $ string "=" >> return EqualSign
 
@@ -90,7 +90,7 @@ rbrace = parsePos $ char '}' >> return RBrace
 structToken :: Parser TokenPos
 structToken = parsePos $ string "struct" >> return Struct
 enumToken :: Parser TokenPos
-enumToken = parsePos $ string "enum" >> return Enum
+enumToken = parsePos $ string "enum" >> return TEnum
 caseToken :: Parser TokenPos
 caseToken = parsePos $ string "case" >> return Case
 semiToken :: Parser TokenPos
