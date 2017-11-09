@@ -7,7 +7,7 @@ type Program = [Definition]
 
 data Definition = LetDef LetDecl
                 | StructDef String [EmptyLet]
-                | EnumDef String [Identifier]
+                | EnumDef String [String]
 
 type LetDecl = Either EmptyLet ExprLet
 data EmptyLet = EmptyLet 

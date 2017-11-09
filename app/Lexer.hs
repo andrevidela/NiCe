@@ -37,6 +37,9 @@ data Token = If
            | Comma
            | RightArrow
            | WavyMut
+           | IntLit Int
+           | FloatLit Float
+           | StringLit String
            | DoubleQuote
            | SingleQuote
            | TIdent String
@@ -59,14 +62,37 @@ parseID = parsePos $ do
     firstChar = letter <|> char '_'
     nonFirstChar = digit <|> char '\'' <|> firstChar
 
+-- literals
+
 parsePos :: Parser Token -> Parser TokenPos
 parsePos p = (,) <$> p <*> getPosition
 
+escape :: Parser String
+escape = do
+    d <- char '\\'
+    c <- oneOf "\\\"0nrvtbf" -- all the characters which can be escaped
+    return [d, c]
+
+nonEscape :: Parser Char
+nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
+
+character :: Parser String
+character = fmap return nonEscape <|> escape
+
+parseString :: Parser TokenPos
+parseString = parsePos $ do
+                            char '"'
+                            strings <- many character
+                            char '"'
+                            return $ StringLit (concat strings)
+      
+-- Whitespace
 eolToken :: Parser TokenPos
 eolToken = parsePos $ many1 (char '\n') >> return EOL
 whitespace :: Parser TokenPos
 whitespace = parsePos $ (many1 space) >> return Whitespace
 
+-- reserved
 ifToken :: Parser TokenPos
 ifToken = parsePos $ string "if" >> return If
 thenToken :: Parser TokenPos
@@ -79,6 +105,7 @@ eqToken :: Parser TokenPos
 eqToken = parsePos $ string "=" >> return EqualSign
 
 
+-- delimiters
 lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Parser TokenPos
 lparen = parsePos $ char '(' >> return LParen
 rparen = parsePos $ char ')' >> return RParen
@@ -87,6 +114,7 @@ rbrack = parsePos $ char ']' >> return RBrack
 lbrace = parsePos $ char '{' >> return LBrace
 rbrace = parsePos $ char '}' >> return RBrace
 
+-- symbols
 structToken :: Parser TokenPos
 structToken = parsePos $ string "struct" >> return Struct
 enumToken :: Parser TokenPos
