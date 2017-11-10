@@ -86,13 +86,19 @@ parseAnonFun = do args <- many parseIdent
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
-parseInfix = undefined
+parseInfix = do lhs <- parseExprNotInfix
+                op <- parseOpInfix
+                rhs <- parseExpr
+                return $ InfixOp op lhs rhs
 
 parsePrefix :: Parser Expr
 parsePrefix = undefined
 
 parsePostfix :: Parser Expr
 parsePostfix = undefined
+
+parseOpInfix :: Parser String
+parseOpInfix = undefined
 
 -- parse statements
 parseStatement :: Parser Statement
@@ -103,13 +109,16 @@ parseStatement = choice [ SLet <$> parseLetDecl
                         ] <* sat (==Semi)
 
 parseWhile :: Parser Statement
-parseWhile = undefined
+parseWhile = do sat (==TWhile)
+                cond <- parseExpr
+                stmts <- surroundBrace (many parseStatement)
+                return $ While cond stmts
 
 parseReturn :: Parser Statement
 parseReturn = Return <$> (sat (==TReturn) *> parseExpr)
 
 parsePlain :: Parser Statement
-parsePlain = undefined
+parsePlain = Plain <$> parseExpr
 
 -- parse Let 
 parseEmptyLet :: Parser EmptyLet
