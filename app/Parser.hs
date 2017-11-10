@@ -50,7 +50,66 @@ parseTypeDecl = try parseFunctionType <|> parseSimpleType
 
 -- parse expressions
 parseExpr :: Parser Expr
-parseExpr = undefined
+parseExpr = choice [parseExprNotFun, parseFapp]
+
+parseExprNotFun :: Parser Expr
+parseExprNotFun = choice [ parseIntLit
+                         , parseBoolLit
+                         , parseStrLit
+                         , parseAnonFun
+                         , parseInfix
+                         , parsePrefix
+                         , parsePostfix
+                         ]
+
+parseFapp :: Parser Expr
+parseFapp = do fn <- parseExprNotFun
+               args <- surroundParen $ parseExpr `sepBy` sat (==Comma)
+               return $ FApp fn args
+
+parseIntLit :: Parser Expr
+parseIntLit = undefined
+
+parseFloatLit :: Parser Expr
+parseFloatLit = undefined
+
+parseBoolLit :: Parser Expr
+parseBoolLit = undefined
+
+parseStrLit :: Parser Expr
+parseStrLit = undefined
+
+parseAnonFun :: Parser Expr
+parseAnonFun = do args <- many parseIdent
+                  _ <- sat (==EqualSign)
+                  stmts <- surroundBrack $ many parseStatement
+                  return $ AnonFun args stmts
+
+parseInfix :: Parser Expr
+parseInfix = undefined
+
+parsePrefix :: Parser Expr
+parsePrefix = undefined
+
+parsePostfix :: Parser Expr
+parsePostfix = undefined
+
+-- parse statements
+parseStatement :: Parser Statement
+parseStatement = choice [ SLet <$> parseLetDecl
+                        , parseWhile
+                        , parseReturn
+                        , parsePlain
+                        ] <* sat (==Semi)
+
+parseWhile :: Parser Statement
+parseWhile = undefined
+
+parseReturn :: Parser Statement
+parseReturn = Return <$> (sat (==TReturn) *> parseExpr)
+
+parsePlain :: Parser Statement
+parsePlain = undefined
 
 -- parse Let 
 parseEmptyLet :: Parser EmptyLet
@@ -112,4 +171,4 @@ surroundBrace p = do _ <- sat (==LBrace)
                      return v
 
 parseProgram :: Parser Program
-parseProgram = many $ choice [parseLet, parseStruct, parseEnum]
+parseProgram = choice [parseLet, parseStruct, parseEnum] `sepBy` sat(==Semi)

@@ -29,9 +29,13 @@ data Expr = FApp Expr [Expr]
           | IntLit Int 
           | BoolLit Bool
           | StrLit String 
-          | AnonFun [Identifier] Expr 
+          | AnonFun [String] [Statement]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
           | PostfixOp String Expr
 
 
+data Statement = While Expr [Statement]
+               | SLet LetDecl
+               | Return Expr
+               | Plain Expr

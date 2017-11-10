@@ -19,6 +19,8 @@ data Token = If
            | Then
            | Else
            | TLet
+           | TReturn
+           | TWhile
            | EqualSign
            | Whitespace
            | EOL
@@ -103,7 +105,10 @@ letToken :: Parser TokenPos
 letToken = parsePos $ string "let" >> return TLet
 eqToken :: Parser TokenPos
 eqToken = parsePos $ string "=" >> return EqualSign
-
+returnToken :: Parser TokenPos
+returnToken = parsePos $ string "return" >> return TReturn
+whileToken :: Parser TokenPos
+whileToken = parsePos $ string "while" >> return TWhile
 
 -- delimiters
 lparen, rparen, lbrack, rbrack, lbrace, rbrace :: Parser TokenPos
