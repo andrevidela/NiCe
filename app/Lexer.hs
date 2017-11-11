@@ -22,6 +22,8 @@ data Token = If
            | TReturn
            | TWhile
            | EqualSign
+           | TTrue
+           | TFalse
            | Whitespace
            | EOL
            | LParen
@@ -39,8 +41,8 @@ data Token = If
            | Comma
            | RightArrow
            | WavyMut
-           | IntLit Int
-           | FloatLit Float
+           | TIntLit Int
+           | TFloatLit Float
            | StringLit String
            | DoubleQuote
            | SingleQuote
@@ -95,6 +97,10 @@ whitespace :: Parser TokenPos
 whitespace = parsePos $ (many1 space) >> return Whitespace
 
 -- reserved
+trueToken :: Parser TokenPos
+trueToken = parsePos $ string "true" >> return TTrue
+falseToken :: Parser TokenPos
+falseToken = parsePos $ string "false" >> return TFalse
 ifToken :: Parser TokenPos
 ifToken = parsePos $ string "if" >> return If
 thenToken :: Parser TokenPos
@@ -152,9 +158,10 @@ token = choice
     [ eolToken
     , parseSpace
     , try ifToken <|> parseID
-    , try thenToken <|> parseID
+    , try thenToken <|> try trueToken <|> parseID
     , try elseToken <|> enumToken <|> parseID
     , try letToken <|> parseID
+    , try falseToken <|> parseID
     , eqToken
     , lbrack
     , rbrack

@@ -67,17 +67,38 @@ parseFapp = do fn <- parseExprNotFun
                args <- surroundParen $ parseExpr `sepBy` sat (==Comma)
                return $ FApp fn args
 
-parseIntLit :: Parser Expr
-parseIntLit = undefined
-
 parseFloatLit :: Parser Expr
-parseFloatLit = undefined
+parseFloatLit = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe Expr
+      testTok (TFloatLit flt) = Just (FloatLit flt)
+      testTok _ = Nothing
+      nextPos p t s = p
+
+parseIntLit :: Parser Expr
+parseIntLit = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe Expr
+      testTok (TIntLit int) = Just (IntLit int)
+      testTok _ = Nothing
+      nextPos p t s = p
 
 parseBoolLit :: Parser Expr
-parseBoolLit = undefined
+parseBoolLit = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe Expr
+      testTok (TTrue) = Just (BoolLit True)
+      testTok (TFalse) = Just (BoolLit False)
+      testTok _ = Nothing
+      nextPos p t s = p
 
 parseStrLit :: Parser Expr
-parseStrLit = undefined
+parseStrLit = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe Expr
+      testTok (StringLit str) = Just (StrLit str)
+      testTok _ = Nothing
+      nextPos p t s = p
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseIdent
@@ -86,19 +107,42 @@ parseAnonFun = do args <- many parseIdent
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
-parseInfix = do lhs <- parseExprNotInfix
+parseInfix = do lhs <- parseExpr
                 op <- parseOpInfix
                 rhs <- parseExpr
                 return $ InfixOp op lhs rhs
 
 parsePrefix :: Parser Expr
-parsePrefix = undefined
+parsePrefix = do op <- parseOpPrefix
+                 e <- parseExpr
+                 return $ PrefixOp op e
 
 parsePostfix :: Parser Expr
-parsePostfix = undefined
+parsePostfix = do e <- parseExpr
+                  op <- parseOpPostfix
+                  return $ PostfixOp e op
 
 parseOpInfix :: Parser String
-parseOpInfix = undefined
+parseOpInfix = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe String
+      testTok (TInfix str) = Just str
+      testTok _ = Nothing
+      nextPos p t s = p
+parseOpPostfix :: Parser String
+parseOpPostfix = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe String
+      testTok (TPostfix str) = Just str
+      testTok _ = Nothing
+      nextPos p t s = p
+parseOpPrefix :: Parser String
+parseOpPrefix = tokenPrim (show) nextPos testTok
+    where
+      testTok :: Token -> Maybe String
+      testTok (TPrefix str) = Just str
+      testTok _ = Nothing
+      nextPos p t s = p
 
 -- parse statements
 parseStatement :: Parser Statement
@@ -180,4 +224,4 @@ surroundBrace p = do _ <- sat (==LBrace)
                      return v
 
 parseProgram :: Parser Program
-parseProgram = choice [parseLet, parseStruct, parseEnum] `sepBy` sat(==Semi)
+parseProgram = many $ choice [parseLet, parseStruct, parseEnum]

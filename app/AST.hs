@@ -27,12 +27,13 @@ data Identifier = Identifier { idName :: String }
 
 data Expr = FApp Expr [Expr] 
           | IntLit Int 
+          | FloatLit Float
           | BoolLit Bool
           | StrLit String 
           | AnonFun [String] [Statement]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
-          | PostfixOp String Expr
+          | PostfixOp Expr String
 
 
 data Statement = While Expr [Statement]
