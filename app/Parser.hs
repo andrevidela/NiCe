@@ -21,7 +21,7 @@ sat f = tokenPrim showTok nextPos testTok
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
 parseEither a b = (Left <$> try a) <|> (Right <$> b)
 
-type Parser r = ParsecT [Token] () Maybe r
+type Parser r = Parsec [Token] () r
 
 parseIdent :: Parser String
 parseIdent = tokenPrim (show) nextPos testTok
@@ -182,14 +182,14 @@ parseExprLet = do _ <- sat (==TLet)
                   return $ ExprLet id tpe expr
 
 parseLetDecl :: Parser LetDecl
-parseLetDecl = parseEither parseEmptyLet parseExprLet
+parseLetDecl = parseEither parseExprLet parseEmptyLet
 
 parseLet :: Parser Definition
 parseLet = LetDef <$> parseLetDecl 
 
 -- parse Enums
 parseEnumCase :: Parser String
-parseEnumCase = sat (==Case) *> parseIdent
+parseEnumCase = sat (==Case) *> parseIdent <* sat (==Semi)
 
 parseEnum :: Parser Definition
 parseEnum = do _ <- sat (==TEnum)
@@ -224,4 +224,5 @@ surroundBrace p = do _ <- sat (==LBrace)
                      return v
 
 parseProgram :: Parser Program
-parseProgram = many $ choice [parseLet, parseStruct, parseEnum]
+parseProgram = many $ choice [parseLet, parseStruct, parseEnum] <* eof
+

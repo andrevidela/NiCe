@@ -8,22 +8,25 @@ type Program = [Definition]
 data Definition = LetDef LetDecl
                 | StructDef String [EmptyLet]
                 | EnumDef String [String]
+                deriving (Eq, Show)
 
-type LetDecl = Either EmptyLet ExprLet
+type LetDecl = Either ExprLet EmptyLet
 data EmptyLet = EmptyLet 
   { emptyLetID   :: String
   , emptyLetType :: TypeDecl
-  }
+  } deriving (Eq, Show)
+
 
 data ExprLet = ExprLet
   { exprLetID   :: String
   , exprLetType :: TypeDecl
   , exprLetExpr :: Expr
-  }
+  } deriving (Eq, Show)
 
 data TypeDecl = SimpleType String 
               | FunctionType TypeDecl [TypeDecl] TypeDecl
-data Identifier = Identifier { idName :: String }
+                  deriving (Eq, Show)
+data Identifier = Identifier { idName :: String } deriving (Eq, Show)
 
 data Expr = FApp Expr [Expr] 
           | IntLit Int 
@@ -34,9 +37,11 @@ data Expr = FApp Expr [Expr]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
           | PostfixOp Expr String
+              deriving (Eq, Show)
 
 
 data Statement = While Expr [Statement]
                | SLet LetDecl
                | Return Expr
                | Plain Expr
+                  deriving (Eq, Show)

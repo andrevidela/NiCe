@@ -9,6 +9,7 @@ import Control.Monad (void)
 import Data.Char (isLetter, isDigit, isSpace)
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec hiding (token, tokens, runParser)
+import Text.Parsec.Number
 import Control.Applicative ((<*), (*>), (<$>), (<*>))
 import Control.Monad ((>>=))
 
@@ -26,6 +27,7 @@ data Token = If
            | TFalse
            | Whitespace
            | EOL
+           | EOF
            | LParen
            | RParen
            | LBrack
@@ -90,6 +92,8 @@ parseString = parsePos $ do
                             char '"'
                             return $ StringLit (concat strings)
       
+parseInteger :: Parser TokenPos
+parseInteger = parsePos $ TIntLit <$> nat
 -- Whitespace
 eolToken :: Parser TokenPos
 eolToken = parsePos $ many1 (char '\n') >> return EOL
@@ -157,17 +161,18 @@ token :: Parser TokenPos
 token = choice
     [ eolToken
     , parseSpace
-    , try ifToken <|> parseID
-    , try thenToken <|> try trueToken <|> parseID
-    , try elseToken <|> enumToken <|> parseID
-    , try letToken <|> parseID
-    , try falseToken <|> parseID
+    , try ifToken
+    , try thenToken <|> try trueToken
+    , try elseToken <|> enumToken
+    , try letToken
+    , try falseToken
+    , parseInteger
     , eqToken
     , lbrack
     , rbrack
     , lbrace
     , rbrace
-    , try structToken <|> parseID
+    , try structToken
     , semiToken
     , colonToken
     , dotToken
