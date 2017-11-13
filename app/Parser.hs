@@ -59,7 +59,7 @@ parseTypeDecl = choice [ surroundParen parseTypeDecl
 
 -- parse expressions
 parseExpr :: Parser Expr
-parseExpr = choice [parseExprNotFun, parseFapp]
+parseExpr = try parseFapp <|> parseExprNotFun
 
 parseExprNotFun :: Parser Expr
 parseExprNotFun = choice [ parseIntLit

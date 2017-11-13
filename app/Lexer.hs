@@ -86,8 +86,7 @@ character :: Parser String
 character = fmap return nonEscape <|> escape
 
 parseString :: Parser TokenPos
-parseString = parsePos $ do
-                            char '"'
+parseString = parsePos $ do char '"'
                             strings <- many character
                             char '"'
                             return $ StringLit (concat strings)
@@ -181,7 +180,7 @@ token = choice
     , dotToken
     , rightArrowToken
     , wavyMutToken
-    , doubleQuoteToken
+    , parseString
     , singleQuoteToken
     , try parseOp <|> parseID
     ]
