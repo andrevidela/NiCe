@@ -35,17 +35,26 @@ parseIdent = tokenPrim (show) nextPos testTok
 parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
 
+parseMutableType :: Parser TypeDecl
+parseMutableType = MutableType <$> ((sat (==WavyMut)) *> parseTypeDecl)
+
+parsePointerType :: Parser TypeDecl
+parsePointerType = PointerType <$> ((sat (==(TPrefix ">"))) *> parseTypeDecl)
+
 parseFunctionType :: Parser TypeDecl
-parseFunctionType = do head <- parseSimpleType
-                       _ <- sat (==Comma)
-                       rest <- parseSimpleType `sepBy` sat (==Comma)
+parseFunctionType = do args <- parseSimpleType `sepBy` sat (==Comma)
                        _ <- sat (==RightArrow)
                        returnType <- parseSimpleType
-                       return $ FunctionType head rest returnType
+                       return $ FunctionType (head args) (tail args) returnType
                      
 
 parseTypeDecl :: Parser TypeDecl
-parseTypeDecl = try parseFunctionType <|> parseSimpleType
+parseTypeDecl = choice [ surroundParen parseTypeDecl
+                       , try parseFunctionType 
+                       , parsePointerType
+                       , parseMutableType
+                       , parseSimpleType
+                       ]
 
 
 -- parse expressions
@@ -201,7 +210,7 @@ parseEnum = do _ <- sat (==TEnum)
 parseStruct :: Parser Definition
 parseStruct = do _ <- sat (==Struct)
                  id <- parseIdent
-                 decls <- surroundBrace $ many parseEmptyLet
+                 decls <- surroundBrace $ many (parseEmptyLet <* sat (==Semi))
                  return (StructDef id decls)
 
 -- Surrounding parsers for ()[]{}

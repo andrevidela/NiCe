@@ -166,12 +166,15 @@ token = choice
     , try elseToken <|> enumToken
     , try letToken
     , try falseToken
+    , try caseToken
     , parseInteger
     , eqToken
     , lbrack
     , rbrack
     , lbrace
     , rbrace
+    , lparen
+    , rparen
     , try structToken
     , semiToken
     , colonToken
@@ -188,8 +191,8 @@ tokens = many token
 
 mapOperators :: [Token] -> [Token]
 mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
-mapOperators (Whitespace : (Operator str) : rest) = (TPostfix str) : (mapOperators $ Whitespace : rest)
-mapOperators ((Operator str) : Whitespace : rest) = (TPrefix str) : (mapOperators rest)
+mapOperators (Whitespace : (Operator str) : rest) = (TPrefix str) : (mapOperators $ Whitespace : rest)
+mapOperators ((Operator str) : Whitespace : rest) = (TPostfix str) : (mapOperators rest)
 mapOperators (x : xs) = x : (mapOperators xs)
 mapOperators [] = []
 

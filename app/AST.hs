@@ -24,6 +24,8 @@ data ExprLet = ExprLet
   } deriving (Eq, Show)
 
 data TypeDecl = SimpleType String 
+              | MutableType TypeDecl
+              | PointerType TypeDecl
               | FunctionType TypeDecl [TypeDecl] TypeDecl
                   deriving (Eq, Show)
 data Identifier = Identifier { idName :: String } deriving (Eq, Show)
