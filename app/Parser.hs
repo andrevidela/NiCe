@@ -36,26 +36,20 @@ parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
 
 parseMutableType :: Parser TypeDecl
-parseMutableType = MutableType <$> ((sat (==WavyMut)) *> 
-    (try parseSimpleType <|> parseTypeDecl))
+parseMutableType = MutableType <$> (sat (==WavyMut) *>  parseTypeDeclNoFun)
 
 parsePointerType :: Parser TypeDecl
-parsePointerType = PointerType <$> ((sat (==(TPrefix ">"))) *>
-    (try parseFunctionType <|> surroundParen parseTypeDecl <|> parseSimpleType))
-
-maybeToList :: Maybe [a] -> [a]
-maybeToList (Just a) = a
-maybeToList Nothing = []
+parsePointerType = PointerType <$> ((sat (==(TPrefix ">")) <|> sat (==(Operator ">"))) *>
+  parseTypeDeclNoFun)
 
 parseFunctionType :: Parser TypeDecl
-parseFunctionType = do -- head <- parseTypeDeclNoFun
-                       args <- parseTypeDeclNoFun `sepBy1` sat (==Comma)
+parseFunctionType = do head <- parseTypeDeclNoFun
+                       args <- parseArgs
                        _ <- sat (==RightArrow)
                        returnType <- parseTypeDecl
-                       return $ FunctionType (head args) (tail args) returnType
+                       return $ FunctionType head (args) returnType
   where
-    parseArgs = optionMaybe $ sat (==Comma) *> (parseTypeDecl `sepBy1` sat (==Comma))
-
+    parseArgs = many (sat (==Comma) *> parseTypeDeclNoFun)
 
 parseTypeDeclNoFun :: Parser TypeDecl
 parseTypeDeclNoFun = choice [ surroundParen parseTypeDecl
