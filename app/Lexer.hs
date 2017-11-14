@@ -94,6 +94,7 @@ parseString = parsePos $ do char '"'
 parseInteger :: Parser TokenPos
 parseInteger = parsePos $ TIntLit <$> nat
 -- Whitespace
+eofToken = parsePos $ eof >> return EOF
 eolToken :: Parser TokenPos
 eolToken = parsePos $ many1 (char '\n') >> return EOL
 whitespace :: Parser TokenPos
@@ -178,6 +179,7 @@ token = choice
     , semiToken
     , colonToken
     , dotToken
+    , commaToken
     , rightArrowToken
     , wavyMutToken
     , parseString
@@ -186,7 +188,9 @@ token = choice
     ]
 
 tokens :: Parser [TokenPos]
-tokens = many token
+tokens = do tkns <- (many token)
+            eof <- eofToken
+            return $ tkns ++ [eof]
 
 mapOperators :: [Token] -> [Token]
 mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
@@ -216,9 +220,9 @@ liftPairM :: Monad m => (m a -> m b) -> m (a, c) -> m (b, c)
 liftPairM fn pair = pair >>= (helper fn)
 
 tokenize :: SourceName -> String -> Either ParseError [Token]
-tokenize name text = do result <- parse name text 
+tokenize name text = do result <- parse name text
                         let tokens = map fst result
                         return $ cleanup tokens
   where 
-    parse = runParser tokens ()
+    parse = runParser (tokens ) ()
     cleanup = removeWhitespace . mapOperators . padWhitespace

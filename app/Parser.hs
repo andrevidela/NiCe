@@ -36,17 +36,33 @@ parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
 
 parseMutableType :: Parser TypeDecl
-parseMutableType = MutableType <$> ((sat (==WavyMut)) *> parseTypeDecl)
+parseMutableType = MutableType <$> ((sat (==WavyMut)) *> 
+    (try parseSimpleType <|> parseTypeDecl))
 
 parsePointerType :: Parser TypeDecl
-parsePointerType = PointerType <$> ((sat (==(TPrefix ">"))) *> parseTypeDecl)
+parsePointerType = PointerType <$> ((sat (==(TPrefix ">"))) *>
+    (try parseFunctionType <|> surroundParen parseTypeDecl <|> parseSimpleType))
+
+maybeToList :: Maybe [a] -> [a]
+maybeToList (Just a) = a
+maybeToList Nothing = []
 
 parseFunctionType :: Parser TypeDecl
-parseFunctionType = do args <- parseSimpleType `sepBy` sat (==Comma)
+parseFunctionType = do -- head <- parseTypeDeclNoFun
+                       args <- parseTypeDeclNoFun `sepBy1` sat (==Comma)
                        _ <- sat (==RightArrow)
-                       returnType <- parseSimpleType
+                       returnType <- parseTypeDecl
                        return $ FunctionType (head args) (tail args) returnType
-                     
+  where
+    parseArgs = optionMaybe $ sat (==Comma) *> (parseTypeDecl `sepBy1` sat (==Comma))
+
+
+parseTypeDeclNoFun :: Parser TypeDecl
+parseTypeDeclNoFun = choice [ surroundParen parseTypeDecl
+                            , parsePointerType
+                            , parseMutableType
+                            , parseSimpleType
+                            ]
 
 parseTypeDecl :: Parser TypeDecl
 parseTypeDecl = choice [ surroundParen parseTypeDecl
@@ -227,11 +243,11 @@ surroundParen p = do _ <- sat (==LParen)
                      return v
 
 surroundBrace :: Parser p -> Parser p
-surroundBrace p = do _ <- sat (==LBrace)
+surroundBrace p = do sat (==LBrace)
                      v <- p
-                     _ <- sat (==RBrace)
+                     sat (==RBrace)
                      return v
 
 parseProgram :: Parser Program
-parseProgram = many $ choice [parseLet, parseStruct, parseEnum] <* eof
+parseProgram = (many $ choice [parseLet, parseStruct, parseEnum]) <* sat (==EOF)
 
