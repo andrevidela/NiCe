@@ -6,8 +6,8 @@ import AST
 import Text.Parsec
 import Main
 
-testParse :: String -> Either ParseError Program
-testParse = parseAll "test"
+testParseProgram :: String -> Either ParseError Program
+testParseProgram = parseAll "test"
 
 isSuccess :: Either a b -> Bool
 isSuccess (Right _) = True
@@ -24,14 +24,21 @@ letSpec :: Spec
 letSpec = do 
   describe "letparsing" $ do
          it "should parse empty programs" $ 
-           testParse "" `shouldBe` (Right [])
+           testParseProgram "" `shouldBe` (Right [])
          it "should parse empty let" $
-           testParse "let a : type" `shouldBe` (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "type"}))])
+           testParseProgram "let a : type" `shouldBe` (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "type"}))])
          it "should parse lets with expressions" $
-           testParse "let a : type = 3" `shouldBe` Right [LetDef (Left (ExprLet {exprLetID = "a", exprLetType = SimpleType "type", exprLetExpr = IntLit 3}))]
+           testParseProgram "let a : type = 3" `shouldBe` Right [LetDef (Left (ExprLet {exprLetID = "a", exprLetType = SimpleType "type", exprLetExpr = IntLit 3}))]
          it "should parse lets with infix expressions" $
-           testParse "let a: b = c * d"  <| shouldSucceed
+           testParseProgram "let a: b = c * d"  <| shouldSucceed
          it "should parse function Expressions" $
-           testParse "let a: b = c()" <| shouldSucceed
+           testParseProgram "let a: b = c()" <| shouldSucceed
          it "should parse nested function applications" $
-           testParse "let a : b = c()()" <| shouldSucceed
+           testParseProgram "let a : b = c()()" <| shouldSucceed
+         it "should parse function definitions" $
+           testParseProgram "let a : b = { }" <| shouldSucceed
+  describe "functionParsing" $ do
+      it "should parse anonymous functions" $
+        testParser parseAnonFun "a b { return c; }" <| shouldSucceed
+      it "should parse the application of anonymous functions" $
+        testParser parseFapp "a { return a; }(c)" `shouldBe` Right (FApp (AnonFun ["a"] [Return (PlainIdent "a")]) [PlainIdent "c"])

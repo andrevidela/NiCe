@@ -113,6 +113,7 @@ nonLeftRecExpr = choice [ parsePrefix
                         , parseIntLit
                         , parseFloatLit
                         , parseStrLit
+                        , try parseAnonFun
                         , parseIDExpr
                         ]
 
@@ -151,7 +152,7 @@ parseStrLit = tokenPrim (show) nextPos testTok
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseIdent
-                  stmts <- surroundBrack $ many parseStatement
+                  stmts <- surroundBrace $ many parseStatement
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
