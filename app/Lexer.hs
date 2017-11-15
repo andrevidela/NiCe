@@ -167,6 +167,7 @@ token = choice
     , try letToken
     , try falseToken
     , try caseToken
+    , try returnToken
     , parseInteger
     , eqToken
     , lbrack

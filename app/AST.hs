@@ -39,6 +39,7 @@ data Expr = FApp Expr [Expr]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
           | PostfixOp Expr String
+          | PlainIdent String
               deriving (Eq, Show)
 
 

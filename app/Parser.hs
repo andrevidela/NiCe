@@ -18,6 +18,15 @@ sat f = tokenPrim showTok nextPos testTok
       testTok t     = if f t then Just t else Nothing
       nextPos p t s = p
 
+postfixChain :: Parser a -> Parser (a -> a) -> Parser a
+postfixChain p op = do
+  x <- p
+  rest x
+  where
+    rest x = (do f <- op
+                 rest $ f x) <|> return x
+
+commaSeparated p = p `sepBy` (sat (==Comma))
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
 parseEither a b = (Left <$> try a) <|> (Right <$> b)
 
@@ -69,22 +78,43 @@ parseTypeDecl = choice [ surroundParen parseTypeDecl
 
 -- parse expressions
 parseExpr :: Parser Expr
-parseExpr = try parseFapp <|> parseExprNotFun
+parseExpr = choice [ surroundParen parseExpr
+                   , parseBoolLit
+                   , parseStrLit
+                   , try parseFloatLit <|> parseIntLit
+                   , try parseInfix
+                   , try parseFapp
+                   , parseIDExpr
+                   ]
+
+parseIDExpr = PlainIdent <$> parseIdent
 
 parseExprNotFun :: Parser Expr
-parseExprNotFun = choice [ parseIntLit
-                         , parseBoolLit
-                         , parseStrLit
-                         , parseAnonFun
-                         , parseInfix
+parseExprNotFun = choice [ parseInfix
                          , parsePrefix
                          , parsePostfix
+                         , parseIntLit
+                         , parseBoolLit
+                         , parseStrLit
+                         , try parseAnonFun
+                         , PlainIdent <$> parseIdent
                          ]
 
 parseFapp :: Parser Expr
-parseFapp = do fn <- parseExprNotFun
-               args <- surroundParen $ parseExpr `sepBy` sat (==Comma)
-               return $ FApp fn args
+parseFapp = postfixChain nonLeftRecExpr parseArgs
+    where
+      parseArgs :: Parser (Expr -> Expr)
+      parseArgs = do args <- surroundParen (commaSeparated parseExpr)
+                     return (\fn -> FApp fn args)
+
+nonLeftRecExpr :: Parser Expr
+nonLeftRecExpr = choice [ parsePrefix
+                        , surroundParen parseExpr
+                        , parseIntLit
+                        , parseFloatLit
+                        , parseStrLit
+                        , parseIDExpr
+                        ]
 
 parseFloatLit :: Parser Expr
 parseFloatLit = tokenPrim (show) nextPos testTok
@@ -121,15 +151,24 @@ parseStrLit = tokenPrim (show) nextPos testTok
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseIdent
-                  _ <- sat (==EqualSign)
                   stmts <- surroundBrack $ many parseStatement
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
-parseInfix = do lhs <- parseExpr
+parseInfix = do lhs <- parseIDExpr
                 op <- parseOpInfix
                 rhs <- parseExpr
                 return $ InfixOp op lhs rhs
+  where
+    parseExprNoInfix = choice [ -- try parseFapp
+                                parsePrefix
+                              , parsePostfix
+                              , parseIntLit
+                              , parseBoolLit
+                              , parseStrLit
+                              --, try parseAnonFun
+                              , parseIDExpr
+                              ]
 
 parsePrefix :: Parser Expr
 parsePrefix = do op <- parseOpPrefix
@@ -140,7 +179,7 @@ parsePostfix :: Parser Expr
 parsePostfix = do e <- parseExpr
                   op <- parseOpPostfix
                   return $ PostfixOp e op
-
+  
 parseOpInfix :: Parser String
 parseOpInfix = tokenPrim (show) nextPos testTok
     where
