@@ -168,6 +168,7 @@ token = choice
     , try falseToken
     , try caseToken
     , try returnToken
+    , try whileToken
     , parseInteger
     , eqToken
     , lbrack

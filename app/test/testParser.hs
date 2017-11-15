@@ -36,9 +36,12 @@ letSpec = do
          it "should parse nested function applications" $
            testParseProgram "let a : b = c()()" <| shouldSucceed
          it "should parse function definitions" $
-           testParseProgram "let a : b = { }" <| shouldSucceed
+           testParseProgram "let a : b = c d { }" <| shouldSucceed
   describe "functionParsing" $ do
       it "should parse anonymous functions" $
         testParser parseAnonFun "a b { return c; }" <| shouldSucceed
       it "should parse the application of anonymous functions" $
         testParser parseFapp "a { return a; }(c)" `shouldBe` Right (FApp (AnonFun ["a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
+  describe "statement parsing" $ do
+      it "should parse while statements" $
+        testParser parseWhile "while true { return false; }" <| shouldSucceed
