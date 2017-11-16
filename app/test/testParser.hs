@@ -15,6 +15,7 @@ isSuccess _ = False
 
 shouldSucceed a = shouldSatisfy a isSuccess
 
+
 infixl 1 <|
 
 (<|) :: a -> (a -> b) -> b
@@ -45,3 +46,16 @@ letSpec = do
   describe "statement parsing" $ do
       it "should parse while statements" $
         testParser parseWhile "while true { return false; }" <| shouldSucceed
+      it "shoud parse return statements" $
+        testParser parseReturn "return \"kek\"" <| shouldSucceed
+  describe "expression parsing" $ do
+      it "should parse prefix expressions" $
+        testParser parseExpr ">a" `shouldBe` Right (PrefixOp ">" (PlainIdent "a"))
+      it "should parse posfix expressions" $
+        testParser parseExpr "a> " `shouldBe` Right (PostfixOp (PlainIdent "a") ">")
+      it "should parse both pre and postfix at the same time" $
+        testParser parseExpr " >a> " `shouldBe` Right (PrefixOp ">" (PostfixOp (PlainIdent "a") ">"))
+      it "should parse plain identifiers as expressions" $
+        testParser parseExpr "a" `shouldBe` Right (PlainIdent "a")
+      it "should parse lambdas" $
+        testParser parseExpr "a b { return c; }" `shouldBe` Right (AnonFun ["a", "b"] [Return (PlainIdent "c")])

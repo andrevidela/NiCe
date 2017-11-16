@@ -25,6 +25,14 @@ postfixChain p op = do
   where
     rest x = (do f <- op
                  rest $ f x) <|> return x
+postfixChain1 :: Parser a -> Parser (a -> a) -> Parser a
+postfixChain1 p op = do
+    x <- p
+    f <- op
+    rest (f x)
+    where
+      rest x = (do f <- op
+                   rest $ f x) <|> return x
 
 commaSeparated p = p `sepBy` (sat (==Comma))
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
@@ -84,24 +92,18 @@ parseExpr = choice [ surroundParen parseExpr
                    , try parseFloatLit <|> parseIntLit
                    , try parseInfix
                    , try parseFapp
+                   , parsePrefix
+                   , try parseAnonFun
+                   , try parsePostfix
                    , parseIDExpr
                    ]
 
+parseIDExpr :: Parser Expr
 parseIDExpr = PlainIdent <$> parseIdent
 
-parseExprNotFun :: Parser Expr
-parseExprNotFun = choice [ parseInfix
-                         , parsePrefix
-                         , parsePostfix
-                         , parseIntLit
-                         , parseBoolLit
-                         , parseStrLit
-                         , try parseAnonFun
-                         , PlainIdent <$> parseIdent
-                         ]
 
 parseFapp :: Parser Expr
-parseFapp = postfixChain nonLeftRecExpr parseArgs
+parseFapp = postfixChain1 nonLeftRecExpr parseArgs
     where
       parseArgs :: Parser (Expr -> Expr)
       parseArgs = do args <- surroundParen (commaSeparated parseExpr)
@@ -156,7 +158,7 @@ parseAnonFun = do args <- many parseIdent
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
-parseInfix = do lhs <- parseIDExpr
+parseInfix = do lhs <- parseExprNoInfix
                 op <- parseOpInfix
                 rhs <- parseExpr
                 return $ InfixOp op lhs rhs
@@ -177,9 +179,10 @@ parsePrefix = do op <- parseOpPrefix
                  return $ PrefixOp op e
 
 parsePostfix :: Parser Expr
-parsePostfix = do e <- parseExpr
-                  op <- parseOpPostfix
-                  return $ PostfixOp e op
+parsePostfix = postfixChain1 nonLeftRecExpr post
+    where
+      post = do op <- parseOpPostfix
+                return (\e -> PostfixOp e op)
   
 parseOpInfix :: Parser String
 parseOpInfix = tokenPrim (show) nextPos testTok
