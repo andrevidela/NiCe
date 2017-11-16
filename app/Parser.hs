@@ -90,12 +90,12 @@ parseExpr = choice [ surroundParen parseExpr
                    , parseBoolLit
                    , parseStrLit
                    , try parseFloatLit <|> parseIntLit
-                   , try parseInfix
                    , try parseFapp
                    , parsePrefix
                    , parseIfExpr
                    , try parseAnonFun
                    , try parsePostfix
+                   , try parseInfix
                    , parseIDExpr
                    ]
 
@@ -162,13 +162,6 @@ parseIfExpr = do sat (==If)
                  sat (==Else)
                  e <- parseExpr
                  return $ IfExpr cond t e
-parseIfStmt :: Parser Statement
-parseIfStmt = do sat (==If)
-                 cond <- parseExpr
-                 t <- surroundBrace (many parseStatement)
-                 sat (==Else)
-                 e <- surroundBrace (many parseStatement)
-                 return $ IfStmt cond t e 
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseIdent
@@ -176,20 +169,11 @@ parseAnonFun = do args <- many parseIdent
                   return $ AnonFun args stmts
 
 parseInfix :: Parser Expr
-parseInfix = do lhs <- parseExprNoInfix
-                op <- parseOpInfix
-                rhs <- parseExpr
-                return $ InfixOp op lhs rhs
-  where
-    parseExprNoInfix = choice [ -- try parseFapp
-                                parsePrefix
-                              , parsePostfix
-                              , parseIntLit
-                              , parseBoolLit
-                              , parseStrLit
-                              --, try parseAnonFun
-                              , parseIDExpr
-                              ]
+parseInfix = do nonLeftRecExpr `chainl1` binaryOp
+    where
+      binaryOp :: Parser (Expr -> Expr -> Expr)
+      binaryOp = do op <- parseOpInfix
+                    return $ InfixOp op
 
 parsePrefix :: Parser Expr
 parsePrefix = do op <- parseOpPrefix
@@ -232,6 +216,14 @@ parseStatement = choice [ SLet <$> parseLetDecl
                         , try parseIfStmt
                         , parsePlain
                         ] <* sat (==Semi)
+
+parseIfStmt :: Parser Statement
+parseIfStmt = do sat (==If)
+                 cond <- parseExpr
+                 t <- surroundBrace (many parseStatement)
+                 sat (==Else)
+                 e <- surroundBrace (many parseStatement)
+                 return $ IfStmt cond t e 
 
 parseWhile :: Parser Statement
 parseWhile = do sat (==TWhile)
