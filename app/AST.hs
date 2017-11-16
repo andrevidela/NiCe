@@ -36,7 +36,6 @@ data Expr = FApp Expr [Expr]
           | BoolLit Bool
           | StrLit String 
           | IfExpr Expr Expr Expr
-          | IfStmt Expr [Statement] [Statement]
           | AnonFun [String] [Statement]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
@@ -47,6 +46,7 @@ data Expr = FApp Expr [Expr]
 
 data Statement = While Expr [Statement]
                | SLet LetDecl
+               | IfStmt Expr [Statement] [Statement]
                | Return Expr
                | Plain Expr
                   deriving (Eq, Show)

@@ -162,7 +162,7 @@ parseIfExpr = do sat (==If)
                  sat (==Else)
                  e <- parseExpr
                  return $ IfExpr cond t e
-parseIfStmt :: Parser Expr
+parseIfStmt :: Parser Statement
 parseIfStmt = do sat (==If)
                  cond <- parseExpr
                  t <- surroundBrace (many parseStatement)
@@ -229,6 +229,7 @@ parseStatement :: Parser Statement
 parseStatement = choice [ SLet <$> parseLetDecl
                         , parseWhile
                         , parseReturn
+                        , try parseIfStmt
                         , parsePlain
                         ] <* sat (==Semi)
 
