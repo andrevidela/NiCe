@@ -35,6 +35,8 @@ data Expr = FApp Expr [Expr]
           | FloatLit Float
           | BoolLit Bool
           | StrLit String 
+          | IfExpr Expr Expr Expr
+          | IfStmt Expr [Statement] [Statement]
           | AnonFun [String] [Statement]
           | InfixOp String Expr Expr
           | PrefixOp String Expr

@@ -93,6 +93,7 @@ parseExpr = choice [ surroundParen parseExpr
                    , try parseInfix
                    , try parseFapp
                    , parsePrefix
+                   , parseIfExpr
                    , try parseAnonFun
                    , try parsePostfix
                    , parseIDExpr
@@ -113,6 +114,7 @@ nonLeftRecExpr :: Parser Expr
 nonLeftRecExpr = choice [ parsePrefix
                         , surroundParen parseExpr
                         , parseIntLit
+                        , parseIfExpr
                         , parseFloatLit
                         , parseStrLit
                         , try parseAnonFun
@@ -151,6 +153,22 @@ parseStrLit = tokenPrim (show) nextPos testTok
       testTok (StringLit str) = Just (StrLit str)
       testTok _ = Nothing
       nextPos p t s = p
+
+parseIfExpr :: Parser Expr
+parseIfExpr = do sat (==If)
+                 cond <- parseExpr
+                 sat (==Then)
+                 t <- parseExpr
+                 sat (==Else)
+                 e <- parseExpr
+                 return $ IfExpr cond t e
+parseIfStmt :: Parser Expr
+parseIfStmt = do sat (==If)
+                 cond <- parseExpr
+                 t <- surroundBrace (many parseStatement)
+                 sat (==Else)
+                 e <- surroundBrace (many parseStatement)
+                 return $ IfStmt cond t e 
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseIdent

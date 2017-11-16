@@ -59,3 +59,7 @@ letSpec = do
         testParser parseExpr "a" `shouldBe` Right (PlainIdent "a")
       it "should parse lambdas" $
         testParser parseExpr "a b { return c; }" `shouldBe` Right (AnonFun ["a", "b"] [Return (PlainIdent "c")])
+      it "should parse empty arugment list for lambda" $
+        testParser parseExpr "{ return a; }" `shouldBe` Right (AnonFun [] [Return (PlainIdent "a")])
+      it "should parse if expressions" $
+        testParser parseExpr "if a then b else c" `shouldBe` Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
