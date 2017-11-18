@@ -23,13 +23,17 @@ infixl 1 <|
 
 letSpec :: Spec
 letSpec = do 
-  describe "letparsing" $ do
+  describe "general parsing" $ do
          it "should parse empty programs" $ 
            testParseProgram "" `shouldBe` (Right [])
          it "should parse empty let" $
-           testParseProgram "let a : type" `shouldBe` (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "type"}))])
+           testParseProgram "let a : type" `shouldBe`
+             (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "type"}))])
          it "should parse lets with expressions" $
-           testParseProgram "let a : type = 3" `shouldBe` Right [LetDef (Left (ExprLet {exprLetID = "a", exprLetType = SimpleType "type", exprLetExpr = IntLit 3}))]
+           testParseProgram "let a : type = 3" `shouldBe`
+             Right [LetDef (Left (ExprLet { exprLetID = "a"
+                                          , exprLetType = SimpleType "type"
+                                          , exprLetExpr = IntLit 3}))]
          it "should parse lets with infix expressions" $
            testParseProgram "let a: b = c * d"  <| shouldSucceed
          it "should parse function Expressions" $
@@ -38,11 +42,15 @@ letSpec = do
            testParseProgram "let a : b = c()()" <| shouldSucceed
          it "should parse function definitions" $
            testParseProgram "let a : b = c d { }" <| shouldSucceed
+         it "should parse struct definitions" $
+           testParseProgram "struct List { let value1 : ~>~Int -> >(~Int, >Char -> >>Int); }" `shouldBe`
+             Right []
   describe "functionParsing" $ do
       it "should parse anonymous functions" $
         testParser parseAnonFun "a b { return c; }" <| shouldSucceed
       it "should parse the application of anonymous functions" $
-        testParser parseFapp "a { return a; }(c)" `shouldBe` Right (FApp (AnonFun ["a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
+        testParser parseFapp "a { return a; }(c)" `shouldBe`
+          Right (FApp (AnonFun ["a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
   describe "statement parsing" $ do
       it "should parse while statements" $
         testParser parseWhile "while true { return false; }" <| shouldSucceed
@@ -62,16 +70,30 @@ letSpec = do
       it "should parse empty arugment list for lambda" $
         testParser parseExpr "{ return a; }" `shouldBe` Right (AnonFun [] [Return (PlainIdent "a")])
       it "should parse empty lambda declarations" $
-        testParseProgram "let a : b = { }" `shouldBe` Right [LetDef (Left (ExprLet {exprLetID = "a", exprLetType = SimpleType "b", exprLetExpr = (AnonFun [] [])}))]
+        testParseProgram "let a : b = { }" `shouldBe`
+          Right [LetDef (Left (ExprLet { exprLetID = "a"
+                                       , exprLetType = SimpleType "b"
+                                       , exprLetExpr = (AnonFun [] [])}))]
       it "should parse simple lambda declarations" $
-        testParseProgram "let a : b = { print(3); }" `shouldBe` Right [LetDef (Left (ExprLet {exprLetID = "a", exprLetType = SimpleType "b", exprLetExpr = (AnonFun [] [Plain (FApp (PlainIdent "print") [IntLit 3])])}))]
+        testParseProgram "let a : b = { print(3); }" `shouldBe`
+          Right [LetDef (Left (ExprLet { exprLetID = "a"
+                                       , exprLetType = SimpleType "b"
+                                       , exprLetExpr = (AnonFun [] 
+                                                                [Plain (FApp (PlainIdent "print") 
+                                                                [IntLit 3])])}))]
       it "should parse function application" $
-        testParser parseExpr "f(a, b, c)" `shouldBe` Right (FApp (PlainIdent "f") [PlainIdent "a", PlainIdent "b", PlainIdent "c"])
+        testParser parseExpr "f(a, b, c)" `shouldBe` 
+          Right (FApp (PlainIdent "f") [PlainIdent "a", PlainIdent "b", PlainIdent "c"])
       it "should parse if expressions" $
-        testParser parseExpr "if a then b else c" `shouldBe` Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
+        testParser parseExpr "if a then b else c" `shouldBe`
+          Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
   describe "statement parsing" $ do
       it "should parse if-statements" $
-        testParser parseIfStmt "if true { a(); } else { a(); }" `shouldBe` Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
+        testParser parseIfStmt "if true { a(); } else { a(); }" `shouldBe`
+          Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
       it "should parse lambdas with  if statements" $
         testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
-          Right (AnonFun ["args"] [IfStmt (BoolLit True) [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]] [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
+          Right (AnonFun ["args"] 
+                         [IfStmt (BoolLit True) 
+                                 [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]] 
+                                 [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
