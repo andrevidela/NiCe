@@ -42,7 +42,6 @@ data Token = If
            | Dot
            | Comma
            | RightArrow
-           | WavyMut
            | TIntLit Int
            | TFloatLit Float
            | StringLit String
@@ -146,8 +145,6 @@ commaToken :: Parser TokenPos
 commaToken = parsePos $ string "," >> return Comma
 rightArrowToken :: Parser TokenPos
 rightArrowToken = parsePos $ string "->" >> return RightArrow
-wavyMutToken :: Parser TokenPos
-wavyMutToken = parsePos $ string "~" >> return WavyMut
 doubleQuoteToken :: Parser TokenPos
 doubleQuoteToken = parsePos $ string "\"" >> return DoubleQuote
 singleQuoteToken :: Parser TokenPos
@@ -183,7 +180,6 @@ token = choice
     , dotToken
     , commaToken
     , rightArrowToken
-    , wavyMutToken
     , parseString
     , singleQuoteToken
     , try parseOp <|> parseID
@@ -197,7 +193,9 @@ tokens = do tkns <- (many token)
 mapOperators :: [Token] -> [Token]
 mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
 mapOperators (Whitespace : (Operator str) : rest) = (TPrefix str) : (mapOperators $ Whitespace : rest)
+mapOperators (LParen : (Operator str) : rest) = LParen : (TPrefix str) : (mapOperators $ Whitespace : rest)
 mapOperators ((Operator str) : Whitespace : rest) = (TPostfix str) : (mapOperators rest)
+mapOperators ((Operator str) : RParen : rest) = (TPostfix str) : RParen : (mapOperators rest)
 mapOperators (x : xs) = x : (mapOperators xs)
 mapOperators [] = []
 

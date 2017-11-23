@@ -22,9 +22,9 @@ infixl 1 <|
 (<|) a f = f a
 
 letSpec :: Spec
-letSpec = do 
+letSpec = do
   describe "general parsing" $ do
-         it "should parse empty programs" $ 
+         it "should parse empty programs" $
            testParseProgram "" `shouldBe` (Right [])
          it "should parse empty let" $
            testParseProgram "let a : type" `shouldBe`
@@ -43,9 +43,31 @@ letSpec = do
          it "should parse function definitions" $
            testParseProgram "let a : b = c d { }" <| shouldSucceed
          it "should parse struct definitions" $
-           testParseProgram "struct List { let value1 : ~>~Int -> >(~Int, >Char -> >>Int); }" `shouldBe`
-             Right []
+           testParseProgram "struct List { let value1 : Int; }" `shouldBe`
+             Right [StructDef "List" [EmptyLet {emptyLetID = "value1", emptyLetType = SimpleType "Int"}]]
   describe "functionParsing" $ do
+      it "should parse simple function signatures" $
+        testParser parseTypeDecl "Int -> Int" `shouldBe` 
+          Right (FunctionType (SimpleType "Int") [] (SimpleType "Int"))
+      it "should parse function signatures with modified return type" $
+        testParser parseTypeDecl "Int -> ~Int" `shouldBe` 
+          Right (FunctionType (SimpleType "Int") [] (MutableType (SimpleType "Int")))
+      it "should parse function signatures with modified types" $
+        testParser parseTypeDecl "~Int -> ~Int" `shouldBe` 
+          Right (FunctionType (MutableType (SimpleType "Int")) [] (MutableType (SimpleType "Int")))
+      it "should parse complex function signatures" $
+        testParser parseTypeDecl "~>~Int, ~Int -> >(~Int, >Char -> >>Int)" `shouldBe`
+          Right (FunctionType (MutableType (PointerType (MutableType (SimpleType "Int"))))
+                [MutableType (SimpleType "Int")]
+                (PointerType (FunctionType (MutableType (SimpleType "Int"))
+                                           [PointerType (SimpleType "Char")]
+                                           (PointerType (PointerType (SimpleType "Int")))))
+                )
+      it "should parse nested function signatures" $
+        testParser parseTypeDecl "Int , (Int -> Int) -> Int" `shouldBe`
+          Right (FunctionType (SimpleType "Int") 
+                              [FunctionType (SimpleType "Int") [] (SimpleType "Int")]
+                              (SimpleType "Int"))
       it "should parse anonymous functions" $
         testParser parseAnonFun "a b { return c; }" <| shouldSucceed
       it "should parse the application of anonymous functions" $
@@ -78,11 +100,11 @@ letSpec = do
         testParseProgram "let a : b = { print(3); }" `shouldBe`
           Right [LetDef (Left (ExprLet { exprLetID = "a"
                                        , exprLetType = SimpleType "b"
-                                       , exprLetExpr = (AnonFun [] 
-                                                                [Plain (FApp (PlainIdent "print") 
+                                       , exprLetExpr = (AnonFun []
+                                                                [Plain (FApp (PlainIdent "print")
                                                                 [IntLit 3])])}))]
       it "should parse function application" $
-        testParser parseExpr "f(a, b, c)" `shouldBe` 
+        testParser parseExpr "f(a, b, c)" `shouldBe`
           Right (FApp (PlainIdent "f") [PlainIdent "a", PlainIdent "b", PlainIdent "c"])
       it "should parse if expressions" $
         testParser parseExpr "if a then b else c" `shouldBe`
@@ -93,7 +115,7 @@ letSpec = do
           Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
       it "should parse lambdas with  if statements" $
         testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
-          Right (AnonFun ["args"] 
-                         [IfStmt (BoolLit True) 
-                                 [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]] 
+          Right (AnonFun ["args"]
+                         [IfStmt (BoolLit True)
+                                 [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])

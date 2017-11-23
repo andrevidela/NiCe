@@ -51,13 +51,50 @@ parseIdent = tokenPrim (show) nextPos testTok
 -- Parse Type signatures
 parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
+-- 
+-- parseMutableType :: Parser TypeDecl
+-- parseMutableType = MutableType <$> (sat (==WavyMut) *>  parseTypeDeclNoFun)
+-- 
+-- parsePointerType :: Parser TypeDecl
+-- parsePointerType = PointerType <$> ((sat (==(TPrefix ">")) <|> sat (==(Operator ">"))) *>
+--   parseTypeDeclNoFun)
+-- 
+-- 
+-- parser for prefix type modifier
 
-parseMutableType :: Parser TypeDecl
-parseMutableType = MutableType <$> (sat (==WavyMut) *>  parseTypeDeclNoFun)
+data TypePrefix = Mutable | Pointer deriving (Show, Eq)
+parseTypePrefix :: Parsec [Char] () [TypePrefix]
+parseTypePrefix = many1 singlePrefix
 
-parsePointerType :: Parser TypeDecl
-parsePointerType = PointerType <$> ((sat (==(TPrefix ">")) <|> sat (==(Operator ">"))) *>
-  parseTypeDeclNoFun)
+singlePrefix :: Parsec [Char] () TypePrefix
+singlePrefix = mutablePrefix <|> pointerPrefix
+
+mutablePrefix :: Parsec [Char] () TypePrefix
+mutablePrefix = do satisfy (=='~'); return Mutable
+
+pointerPrefix :: Parsec [Char] () TypePrefix
+pointerPrefix = do satisfy (=='>'); return Pointer
+
+combinePrefix :: [TypePrefix] -> TypeDecl -> TypeDecl
+combinePrefix (Mutable : rest) tpe = MutableType (combinePrefix rest tpe)
+combinePrefix (Pointer : rest) tpe = PointerType (combinePrefix rest tpe)
+combinePrefix [] tpe = tpe
+
+magicParsePrefix :: Parser [TypePrefix]
+magicParsePrefix = tokenPrim show nextPos parseTok
+    where
+      parseTok :: Token -> Maybe [TypePrefix]
+      parseTok (TPrefix str) = case parse parseTypePrefix "TypePrefixParsing" str of
+                                    Right ts -> Just ts
+                                    Left _ -> Nothing
+      parseTok _ = Nothing
+      nextPos p t s = p
+
+parseModifiedType :: Parser TypeDecl
+parseModifiedType = do prefix <- magicParsePrefix
+                       typeValue <- parseTypeDeclNoFun
+                       return $ combinePrefix prefix typeValue
+
 
 parseFunctionType :: Parser TypeDecl
 parseFunctionType = do head <- parseTypeDeclNoFun
@@ -70,16 +107,14 @@ parseFunctionType = do head <- parseTypeDeclNoFun
 
 parseTypeDeclNoFun :: Parser TypeDecl
 parseTypeDeclNoFun = choice [ surroundParen parseTypeDecl
-                            , parsePointerType
-                            , parseMutableType
+                            , parseModifiedType
                             , parseSimpleType
                             ]
 
 parseTypeDecl :: Parser TypeDecl
-parseTypeDecl = choice [ surroundParen parseTypeDecl
-                       , try parseFunctionType 
-                       , parsePointerType
-                       , parseMutableType
+parseTypeDecl = choice [ try parseFunctionType 
+                       , surroundParen parseTypeDecl
+                       , parseModifiedType
                        , parseSimpleType
                        ]
 
