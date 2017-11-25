@@ -4,6 +4,7 @@ import AST
 import Parser
 import Lexer
 import Text.Parsec
+import System.Environment
 
 parseAll :: SourceName -> String -> Either ParseError Program
 parseAll name src = do tokens <- tokenize name src
@@ -17,4 +18,9 @@ testParser p string = do tokens <- tokenize "test" string
                          runParser p () "test" tokens
 
 main :: IO ()
-main = putStrLn "topkek"
+main = do args <- getArgs
+          case args of
+               [file] -> do 
+                 content <- readFile file
+                 putStrLn $ show $ parseAll file content
+               _ -> putStrLn "enter a file to parse"

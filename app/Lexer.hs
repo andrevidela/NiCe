@@ -67,6 +67,10 @@ parseID = parsePos $ do
     firstChar = letter <|> char '_'
     nonFirstChar = digit <|> char '\'' <|> firstChar
 
+comment :: GenParser Char st ()
+comment =
+    (string "//" >> manyTill anyChar newline >> spaces >> return ()) <|>
+    (string "/*" >> manyTill anyChar ((try (string "*/") >> return ()) <|> eof) >> spaces >> return ())
 -- literals
 
 parsePos :: Parser Token -> Parser TokenPos
@@ -155,9 +159,8 @@ parseSpace :: Parser TokenPos
 parseSpace = parsePos $ (many1 space) *> return Whitespace
 
 token :: Parser TokenPos
-token = choice
-    [ eolToken
-    , parseSpace
+token = skipMany comment *> choice
+    [ parseSpace
     , try ifToken
     , try thenToken <|> try trueToken
     , try elseToken <|> enumToken

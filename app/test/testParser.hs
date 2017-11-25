@@ -119,3 +119,6 @@ letSpec = do
                          [IfStmt (BoolLit True)
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
+  describe "others" $ do
+      it "should ignore line comments" $ 
+        testParseProgram "let a: b//test comment\nlet a: b" `shouldBe` (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))    ])
