@@ -69,7 +69,7 @@ parseID = parsePos $ do
 
 comment :: GenParser Char st ()
 comment =
-    (string "//" >> manyTill anyChar newline >> spaces >> return ()) <|>
+    (try (string "//") >> manyTill anyChar ((newline >> return ()) <|> eof) >> spaces >> return ()) <|>
     (string "/*" >> manyTill anyChar ((try (string "*/") >> return ()) <|> eof) >> spaces >> return ())
 -- literals
 
@@ -186,7 +186,7 @@ token = skipMany comment *> choice
     , parseString
     , singleQuoteToken
     , try parseOp <|> parseID
-    ]
+    ] <* skipMany comment
 
 tokens :: Parser [TokenPos]
 tokens = do tkns <- (many token)

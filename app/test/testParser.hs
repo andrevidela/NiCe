@@ -121,4 +121,15 @@ letSpec = do
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
   describe "others" $ do
       it "should ignore line comments" $ 
-        testParseProgram "let a: b//test comment\nlet a: b" `shouldBe` (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))    ])
+        testParseProgram "let a: b//test comment\nlet a: b" `shouldBe`
+          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) 
+                 , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
+
+      it "should ignore line comments at end of program" $ 
+        testParseProgram "let a: b//test comment" `shouldBe` 
+          (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
+
+      it "should ignore multi line comments" $ 
+        testParseProgram "let a: b/*test comment\nnext line comment */\nlet a: b" `shouldBe`
+          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) 
+                 , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
