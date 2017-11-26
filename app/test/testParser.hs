@@ -103,6 +103,8 @@ letSpec = do
                                        , exprLetExpr = (AnonFun []
                                                                 [Plain (FApp (PlainIdent "print")
                                                                 [IntLit 3])])}))]
+      it "should parse struct projection" $
+        testParser parseExpr "a.b" `shouldBe` Right (Proj (PlainIdent "a") "b")
       it "should parse function application" $
         testParser parseExpr "f(a, b, c)" `shouldBe`
           Right (FApp (PlainIdent "f") [PlainIdent "a", PlainIdent "b", PlainIdent "c"])

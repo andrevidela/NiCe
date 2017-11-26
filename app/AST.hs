@@ -31,6 +31,7 @@ data TypeDecl = SimpleType String
 data Identifier = Identifier { idName :: String } deriving (Eq, Show)
 
 data Expr = FApp Expr [Expr] 
+          | Proj Expr String
           | IntLit Int 
           | FloatLit Float
           | BoolLit Bool

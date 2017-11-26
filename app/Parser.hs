@@ -51,16 +51,6 @@ parseIdent = tokenPrim (show) nextPos testTok
 -- Parse Type signatures
 parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
--- 
--- parseMutableType :: Parser TypeDecl
--- parseMutableType = MutableType <$> (sat (==WavyMut) *>  parseTypeDeclNoFun)
--- 
--- parsePointerType :: Parser TypeDecl
--- parsePointerType = PointerType <$> ((sat (==(TPrefix ">")) <|> sat (==(Operator ">"))) *>
---   parseTypeDeclNoFun)
--- 
--- 
--- parser for prefix type modifier
 
 data TypePrefix = Mutable | Pointer deriving (Show, Eq)
 parseTypePrefix :: Parsec [Char] () [TypePrefix]
@@ -125,6 +115,7 @@ parseExpr = choice [ surroundParen parseExpr
                    , parseBoolLit
                    , parseStrLit
                    , try parseFloatLit <|> parseIntLit
+                   , try parseProjection
                    , try parseFapp
                    , parsePrefix
                    , parseIfExpr
@@ -144,6 +135,14 @@ parseFapp = postfixChain1 nonLeftRecExpr parseArgs
       parseArgs :: Parser (Expr -> Expr)
       parseArgs = do args <- surroundParen (commaSeparated parseExpr)
                      return (\fn -> FApp fn args)
+
+parseProjection :: Parser Expr
+parseProjection = postfixChain1 nonLeftRecExpr parseProj
+    where
+      parseProj :: Parser (Expr -> Expr)
+      parseProj  = do sat (==Dot)
+                      id <- parseIdent 
+                      return (\struct -> Proj struct id)
 
 nonLeftRecExpr :: Parser Expr
 nonLeftRecExpr = choice [ parsePrefix
