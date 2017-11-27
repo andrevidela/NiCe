@@ -127,7 +127,10 @@ elseToken = parsePos $ string "else" >> return Else
 letToken :: Parser TokenPos
 letToken = parsePos $ string "let" >> return TLet
 eqToken :: Parser TokenPos
-eqToken = parsePos $ string "=" >> return EqualSign
+eqToken = parsePos $ do whitespace
+                        string "="
+                        whitespace
+                        return EqualSign
 returnToken :: Parser TokenPos
 returnToken = parsePos $ string "return" >> return TReturn
 whileToken :: Parser TokenPos
@@ -172,8 +175,8 @@ parseSpace = parsePos $ (many1 space) *> return Whitespace
 
 token :: Parser TokenPos
 token = skipMany comment *> choice
-    [ parseSpace
-    , try ifToken
+    [ 
+      try ifToken
     , try thenToken <|> try trueToken
     , try elseToken <|> enumToken
     , try letToken
@@ -182,7 +185,8 @@ token = skipMany comment *> choice
     , try returnToken
     , try whileToken
     , parseInteger
-    , eqToken
+    , try eqToken
+    , whitespace
     , lbrack
     , rbrack
     , lbrace

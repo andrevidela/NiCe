@@ -34,6 +34,14 @@ postfixChain1 p op = do
       rest x = (do f <- op
                    rest $ f x) <|> return x
 
+chainl2 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m (a -> a -> a) -> ParsecT s u m a
+chainl2 p op        = do{ x <- p; f <- op; y <- p; rest (f x y) }
+                    where
+                      rest x    = do{ f <- op
+                                    ; y <- p
+                                    ; rest (f x y)
+                                    }
+                                <|> return x
 commaSeparated p = p `sepBy` (sat (==Comma))
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
 parseEither a b = (Left <$> try a) <|> (Right <$> b)
@@ -112,8 +120,7 @@ parseTypeDecl = choice [ try parseFunctionType
 -- parse expressions
 parseExpr :: Parser Expr
 parseExpr = choice [ surroundParen parseExpr
-                   , parseBoolLit
-                   , parseStrLit
+                   , try parseInfix
                    , try parseFloatLit <|> parseIntLit
                    , try parseProjection
                    , try parseFapp
@@ -121,7 +128,8 @@ parseExpr = choice [ surroundParen parseExpr
                    , parseIfExpr
                    , try parseAnonFun
                    , try parsePostfix
-                   , try parseInfix
+                   , parseStrLit
+                   , parseBoolLit
                    , parseIDExpr
                    ]
 
@@ -147,6 +155,7 @@ parseProjection = postfixChain1 nonLeftRecExpr parseProj
 nonLeftRecExpr :: Parser Expr
 nonLeftRecExpr = choice [ parsePrefix
                         , surroundParen parseExpr
+                        , parseBoolLit
                         , parseIntLit
                         , parseIfExpr
                         , parseFloatLit
@@ -205,7 +214,7 @@ parseFArg :: Parser FArg
 parseFArg = (FArgument <$> parseIdent) <|> (sat (==Wildcard) >> return WildCardArg)
 
 parseInfix :: Parser Expr
-parseInfix = do nonLeftRecExpr `chainl1` binaryOp
+parseInfix = do nonLeftRecExpr `chainl2` binaryOp
     where
       binaryOp :: Parser (Expr -> Expr -> Expr)
       binaryOp = do op <- parseOpInfix

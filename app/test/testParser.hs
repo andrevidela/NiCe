@@ -114,12 +114,18 @@ letSpec = do
       it "should parse if expressions" $
         testParser parseExpr "if a then b else c" `shouldBe`
           Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
+      it "should parse infix expressions" $
+        testParser parseExpr "true == false" `shouldBe` 
+          Right (InfixOp "==" (BoolLit True) (BoolLit False))
   describe "statement parsing" $ do
       it "should parse assignments" $
         testParser parseStatement "a = 3;" `shouldBe` Right (Assign "a" (IntLit 3))
       it "should parse if-statements" $
         testParser parseIfStmt "if true { a(); } else { a(); }" `shouldBe`
           Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
+      it "should parse lambda with mutliple arguments" $
+        testParser parseExpr "a b { }" `shouldBe` Right (AnonFun [FArgument "a", FArgument "b"]
+                                                                 [])
       it "should parse lambdas with  if statements" $
         testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
           Right (AnonFun [FArgument "args"]
@@ -140,3 +146,26 @@ letSpec = do
         testParseProgram "let a: b/*test comment\nnext line comment */\nlet a: b" `shouldBe`
           (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) 
                  , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
+  describe "Whole programs" $ do
+      it "should parse a whole program" $
+        testParseProgram "\
+        \struct List { let value: Int;\n\
+        \              let tail: List; }\n\n\
+        \let reduce : >List , ~Int -> (Int , Int -> Int) = \n\
+        \  ls acc op { \n\
+        \    let curr : ~>List = acc; \n\
+        \    while curr /= NULL { \n\
+        \      /*acc = op(ls>.value); \n\
+        \      curr = curr>.tail; */\n\
+        \    }; \n\
+        \    return acc; \n\
+        \  }" <| shouldSucceed
+      it "should parse complex signatures" $
+        testParseProgram "let reduce : >List , ~Int -> (Int , Int -> Int)" `shouldBe`
+          Right [LetDef (Right (
+            EmptyLet { emptyLetID = "reduce"
+                     , emptyLetType = FunctionType (PointerType (SimpleType "List")) 
+                                                   [MutableType (SimpleType "Int")]
+                                                   (FunctionType (SimpleType "Int") 
+                                                                 [SimpleType "Int"] 
+                                                                 (SimpleType "Int"))}))]
