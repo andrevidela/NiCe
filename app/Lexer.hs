@@ -40,6 +40,7 @@ data Token = If
            | Semi
            | Colon
            | Dot
+           | Wildcard
            | Comma
            | RightArrow
            | TIntLit Int
@@ -58,14 +59,23 @@ parseOp :: Parser TokenPos
 parseOp = parsePos $ do
                      ops <- many1 $ oneOf "&|*/-+<>%^=!¬∀∴~\\†∃∵∫√≤≥:•°·⊕§∷$"
                      return (Operator ops)
-parseID :: Parser TokenPos
-parseID = parsePos $ do
-                     i <- firstChar 
-                     n <- many nonFirstChar
-                     return (TIdent (i : n))
+parseIDNoUnderscore :: Parser TokenPos
+parseIDNoUnderscore = parsePos $ do
+                                    i <- firstChar 
+                                    n <- many nonFirstChar
+                                    return (TIdent (i : n))
+  where
+    firstChar = letter
+    nonFirstChar = digit <|> char '\'' <|> firstChar
+parseIDUnderscore :: Parser TokenPos
+parseIDUnderscore = parsePos $ do
+                                  i <- firstChar
+                                  n <- many1 nonFirstChar
+                                  return (TIdent (i : n))
   where
     firstChar = letter <|> char '_'
     nonFirstChar = digit <|> char '\'' <|> firstChar
+
 
 comment :: GenParser Char st ()
 comment =
@@ -153,6 +163,8 @@ doubleQuoteToken :: Parser TokenPos
 doubleQuoteToken = parsePos $ string "\"" >> return DoubleQuote
 singleQuoteToken :: Parser TokenPos
 singleQuoteToken = parsePos $ string "\'" >> return SingleQuote
+wildcardToken :: Parser TokenPos
+wildcardToken = parsePos $ string "_" >> return Wildcard
 
 
 parseSpace :: Parser TokenPos
@@ -185,7 +197,10 @@ token = skipMany comment *> choice
     , rightArrowToken
     , parseString
     , singleQuoteToken
-    , try parseOp <|> parseID
+    , try parseOp
+    , try parseIDUnderscore
+    , wildcardToken
+    , parseIDNoUnderscore
     ] <* skipMany comment
 
 tokens :: Parser [TokenPos]

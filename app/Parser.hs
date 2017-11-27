@@ -198,9 +198,11 @@ parseIfExpr = do sat (==If)
                  return $ IfExpr cond t e
 
 parseAnonFun :: Parser Expr
-parseAnonFun = do args <- many parseIdent
+parseAnonFun = do args <- many parseFArg
                   stmts <- surroundBrace $ many parseStatement
                   return $ AnonFun args stmts
+parseFArg :: Parser FArg
+parseFArg = (FArgument <$> parseIdent) <|> (sat (==Wildcard) >> return WildCardArg)
 
 parseInfix :: Parser Expr
 parseInfix = do nonLeftRecExpr `chainl1` binaryOp

@@ -72,13 +72,16 @@ letSpec = do
         testParser parseAnonFun "a b { return c; }" <| shouldSucceed
       it "should parse the application of anonymous functions" $
         testParser parseFapp "a { return a; }(c)" `shouldBe`
-          Right (FApp (AnonFun ["a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
+          Right (FApp (AnonFun [FArgument "a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
   describe "statement parsing" $ do
       it "should parse while statements" $
         testParser parseWhile "while true { return false; }" <| shouldSucceed
       it "shoud parse return statements" $
         testParser parseReturn "return \"kek\"" <| shouldSucceed
   describe "expression parsing" $ do
+      it "should parse functions with wildcard args" $ do 
+        testParser parseExpr "_ acc { acc + 1; }" `shouldBe` 
+          Right (AnonFun [WildCardArg, FArgument "acc"] [Plain (InfixOp "+" (PlainIdent "acc") (IntLit 1)) ])
       it "should parse prefix expressions" $
         testParser parseExpr ">a" `shouldBe` Right (PrefixOp ">" (PlainIdent "a"))
       it "should parse posfix expressions" $
@@ -88,7 +91,7 @@ letSpec = do
       it "should parse plain identifiers as expressions" $
         testParser parseExpr "a" `shouldBe` Right (PlainIdent "a")
       it "should parse lambdas" $
-        testParser parseExpr "a b { return c; }" `shouldBe` Right (AnonFun ["a", "b"] [Return (PlainIdent "c")])
+        testParser parseExpr "a b { return c; }" `shouldBe` Right (AnonFun [FArgument "a", FArgument "b"] [Return (PlainIdent "c")])
       it "should parse empty arugment list for lambda" $
         testParser parseExpr "{ return a; }" `shouldBe` Right (AnonFun [] [Return (PlainIdent "a")])
       it "should parse empty lambda declarations" $
@@ -117,7 +120,7 @@ letSpec = do
           Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
       it "should parse lambdas with  if statements" $
         testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
-          Right (AnonFun ["args"]
+          Right (AnonFun [FArgument "args"]
                          [IfStmt (BoolLit True)
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])

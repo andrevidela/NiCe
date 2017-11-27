@@ -30,6 +30,8 @@ data TypeDecl = SimpleType String
                   deriving (Eq, Show)
 data Identifier = Identifier { idName :: String } deriving (Eq, Show)
 
+data FArg = FArgument String | WildCardArg deriving (Eq, Show)
+
 data Expr = FApp Expr [Expr] 
           | Proj Expr String
           | IntLit Int 
@@ -37,7 +39,7 @@ data Expr = FApp Expr [Expr]
           | BoolLit Bool
           | StrLit String 
           | IfExpr Expr Expr Expr
-          | AnonFun [String] [Statement]
+          | AnonFun [FArg] [Statement]
           | InfixOp String Expr Expr
           | PrefixOp String Expr
           | PostfixOp Expr String
