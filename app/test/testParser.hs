@@ -115,6 +115,8 @@ letSpec = do
         testParser parseExpr "if a then b else c" `shouldBe`
           Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
   describe "statement parsing" $ do
+      it "should parse assignments" $
+        testParser parseStatement "a = 3;" `shouldBe` Right (Assign "a" (IntLit 3))
       it "should parse if-statements" $
         testParser parseIfStmt "if true { a(); } else { a(); }" `shouldBe`
           Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])

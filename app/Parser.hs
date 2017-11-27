@@ -250,8 +250,15 @@ parseStatement = choice [ SLet <$> parseLetDecl
                         , parseWhile
                         , parseReturn
                         , try parseIfStmt
+                        , try parseAssignement
                         , parsePlain
                         ] <* sat (==Semi)
+
+parseAssignement :: Parser Statement
+parseAssignement = do i <- parseIdent
+                      sat (==EqualSign)
+                      e <- parseExpr
+                      return $ Assign i e
 
 parseIfStmt :: Parser Statement
 parseIfStmt = do sat (==If)

@@ -50,6 +50,7 @@ data Expr = FApp Expr [Expr]
 data Statement = While Expr [Statement]
                | SLet LetDecl
                | IfStmt Expr [Statement] [Statement]
+               | Assign String Expr
                | Return Expr
                | Plain Expr
                   deriving (Eq, Show)

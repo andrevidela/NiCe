@@ -7,19 +7,19 @@
 //
 
 struct List { let value: Int;
-              let tail: List; };
+              let tail: List; }
 
 let reduce : >List , ~Int -> (Int , Int -> Int) =
     ls acc op {
         let curr : ~>List = acc
         while curr != NULL {
             acc = op(ls>.value, acc);
-            curr = curr>tail;
+            curr = curr>.tail;
         }
         acc;
-    };
+    }
 
-let length : >List -> Int = ls { reduce(ls, 0, _ acc { acc + 1 }) };
+let length : >List -> Int = ls { reduce(ls, 0, _ acc { acc + 1 }) }
 
 
 let createList: >~>List , Int -> () = dest size {
@@ -30,7 +30,7 @@ let createList: >~>List , Int -> () = dest size {
         dest> = node;
         size -= 1;
     };
-};
+}
 
 let deleteList : >>List -> () = ls {
     let curr : ~>List = ls>;
@@ -40,7 +40,7 @@ let deleteList : >>List -> () = ls {
         curr = next;
     };
     ls> = NULL;
-};
+}
 
 let map: >~List , >~List , (Int -> Int) -> () =
     source dest op {
@@ -51,11 +51,11 @@ let map: >~List , >~List , (Int -> Int) -> () =
             current = courrent>.tail
             destMut = dest>.tail;
         };
-    };
+    }
 
 let stackMap : >List , (Int -> Int) -> >List = ls op {
     
-};
+}
 
 let main: Int , >>~Char -> Int = argc argv {
 
@@ -71,4 +71,4 @@ let main: Int , >>~Char -> Int = argc argv {
     deleteList(>empty);
     println("%d", length(empty));
     0;
-};
+}
