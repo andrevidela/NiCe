@@ -34,8 +34,8 @@ postfixChain1 p op = do
       rest x = (do f <- op
                    rest $ f x) <|> return x
 
-chainl2 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m (a -> a -> a) -> ParsecT s u m a
-chainl2 p op        = do{ x <- p; f <- op; y <- p; rest (f x y) }
+chainl2 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m (a -> a -> a) -> ParsecT s u m a
+chainl2 notLeftRec p op = do{ x <- notLeftRec; f <- op; y <- p; rest (f x y) }
                     where
                       rest x    = do{ f <- op
                                     ; y <- p
@@ -214,7 +214,7 @@ parseFArg :: Parser FArg
 parseFArg = (FArgument <$> parseIdent) <|> (sat (==Wildcard) >> return WildCardArg)
 
 parseInfix :: Parser Expr
-parseInfix = do nonLeftRecExpr `chainl2` binaryOp
+parseInfix = do chainl2 nonLeftRecExpr parseExpr binaryOp
     where
       binaryOp :: Parser (Expr -> Expr -> Expr)
       binaryOp = do op <- parseOpInfix

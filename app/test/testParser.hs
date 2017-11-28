@@ -75,7 +75,7 @@ letSpec = do
           Right (FApp (AnonFun [FArgument "a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
   describe "statement parsing" $ do
       it "should parse while statements" $
-        testParser parseWhile "while true { return false; }" <| shouldSucceed
+        testParser parseWhile "while a == f(b) { return false; }" <| shouldSucceed
       it "shoud parse return statements" $
         testParser parseReturn "return \"kek\"" <| shouldSucceed
   describe "expression parsing" $ do
@@ -114,6 +114,9 @@ letSpec = do
       it "should parse if expressions" $
         testParser parseExpr "if a then b else c" `shouldBe`
           Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
+      it "should parse infix expressions" $
+        testParser parseExpr "true != false" `shouldBe` 
+          Right (InfixOp "!=" (BoolLit True) (BoolLit False))
       it "should parse infix expressions" $
         testParser parseExpr "true == false" `shouldBe` 
           Right (InfixOp "==" (BoolLit True) (BoolLit False))
