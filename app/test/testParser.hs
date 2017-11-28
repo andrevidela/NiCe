@@ -73,11 +73,6 @@ letSpec = do
       it "should parse the application of anonymous functions" $
         testParser parseFapp "a { return a; }(c)" `shouldBe`
           Right (FApp (AnonFun [FArgument "a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
-  describe "statement parsing" $ do
-      it "should parse while statements" $
-        testParser parseWhile "while a == f(b) { return false; }" <| shouldSucceed
-      it "shoud parse return statements" $
-        testParser parseReturn "return \"kek\"" <| shouldSucceed
   describe "expression parsing" $ do
       it "should parse functions with wildcard args" $ do 
         testParser parseExpr "_ acc { acc + 1; }" `shouldBe` 
@@ -121,16 +116,22 @@ letSpec = do
         testParser parseExpr "true == false" `shouldBe` 
           Right (InfixOp "==" (BoolLit True) (BoolLit False))
   describe "statement parsing" $ do
+      it "should parse while statements" $
+        testParser parseWhile "while (a == f(b)) { return false; }" <| shouldSucceed
+      it "should parse while statements2" $
+        testParser parseWhile "while (a != NULL) { return false; }" <| shouldSucceed
+      it "shoud parse return statements" $
+        testParser parseReturn "return \"kek\"" <| shouldSucceed
       it "should parse assignments" $
         testParser parseStatement "a = 3;" `shouldBe` Right (Assign "a" (IntLit 3))
       it "should parse if-statements" $
-        testParser parseIfStmt "if true { a(); } else { a(); }" `shouldBe`
+        testParser parseIfStmt "if (true) { a(); } else { a(); }" `shouldBe`
           Right (IfStmt (BoolLit True) [Plain (FApp (PlainIdent "a") [])] [Plain (FApp (PlainIdent "a") [])])
       it "should parse lambda with mutliple arguments" $
         testParser parseExpr "a b { }" `shouldBe` Right (AnonFun [FArgument "a", FArgument "b"]
                                                                  [])
       it "should parse lambdas with  if statements" $
-        testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
+        testParser parseExpr  "args { if (true) { print(b);} else { print(b); }; }" `shouldBe`
           Right (AnonFun [FArgument "args"]
                          [IfStmt (BoolLit True)
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
@@ -157,9 +158,9 @@ letSpec = do
         \let reduce : >List , ~Int -> (Int , Int -> Int) = \n\
         \  ls acc op { \n\
         \    let curr : ~>List = acc; \n\
-        \    while curr /= NULL { \n\
-        \      /*acc = op(ls>.value); \n\
-        \      curr = curr>.tail; */\n\
+        \    while (curr != NULL) { \n\
+        \      acc = op(ls>.value); \n\
+        \      //curr = curr>.tail; \n\
         \    }; \n\
         \    return acc; \n\
         \  }" <| shouldSucceed

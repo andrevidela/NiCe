@@ -271,7 +271,7 @@ parseAssignement = do i <- parseIdent
 
 parseIfStmt :: Parser Statement
 parseIfStmt = do sat (==If)
-                 cond <- parseExpr
+                 cond <- surroundParen parseExpr
                  t <- surroundBrace (many parseStatement)
                  sat (==Else)
                  e <- surroundBrace (many parseStatement)
@@ -279,7 +279,7 @@ parseIfStmt = do sat (==If)
 
 parseWhile :: Parser Statement
 parseWhile = do sat (==TWhile)
-                cond <- parseExpr
+                cond <- surroundParen parseExpr
                 stmts <- surroundBrace (many parseStatement)
                 return $ While cond stmts
 
