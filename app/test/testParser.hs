@@ -5,7 +5,6 @@ import Parser
 import AST
 import Text.Parsec
 import Main
-
 testParseProgram :: String -> Either ParseError Program
 testParseProgram = parseAll "test"
 
@@ -103,6 +102,8 @@ letSpec = do
                                                                 [IntLit 3])])}))]
       it "should parse struct projection" $
         testParser parseExpr "a.b" `shouldBe` Right (Proj (PlainIdent "a") "b")
+      it "should parse struct projection with deref" $
+        testParser parseExpr "a>.b" `shouldBe` Right (Proj (PostfixOp (PlainIdent "a") ">") "b")
       it "should parse function application" $
         testParser parseExpr "f(a, b, c)" `shouldBe`
           Right (FApp (PlainIdent "f") [PlainIdent "a", PlainIdent "b", PlainIdent "c"])
@@ -159,8 +160,8 @@ letSpec = do
         \  ls acc op { \n\
         \    let curr : ~>List = acc; \n\
         \    while (curr != NULL) { \n\
-        \      acc = op(ls>.value); \n\
-        \      //curr = curr>.tail; \n\
+        \      acc = op((ls>).value); \n\
+        \      curr = (curr>).tail; \n\
         \    }; \n\
         \    return acc; \n\
         \  }" <| shouldSucceed

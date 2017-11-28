@@ -215,9 +215,10 @@ tokens = do tkns <- (many token)
 mapOperators :: [Token] -> [Token]
 mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
 mapOperators (Whitespace : (Operator str) : rest) = (TPrefix str) : (mapOperators $ Whitespace : rest)
-mapOperators (LParen : (Operator str) : rest) = LParen : (TPrefix str) : (mapOperators $ Whitespace : rest)
+mapOperators (LParen     : (Operator str) : rest) = LParen : (TPrefix str) : (mapOperators $ Whitespace : rest)
 mapOperators ((Operator str) : Whitespace : rest) = (TPostfix str) : (mapOperators rest)
-mapOperators ((Operator str) : RParen : rest) = (TPostfix str) : RParen : (mapOperators rest)
+mapOperators ((Operator str) : RParen     : rest) = (TPostfix str) : RParen : (mapOperators rest)
+mapOperators ((Operator str) : Dot        : rest) = (TPostfix str) : RParen : (mapOperators rest)
 mapOperators (x : xs) = x : (mapOperators xs)
 mapOperators [] = []
 

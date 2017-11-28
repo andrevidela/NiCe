@@ -119,17 +119,18 @@ parseTypeDecl = choice [ try parseFunctionType
 
 -- parse expressions
 parseExpr :: Parser Expr
-parseExpr = choice [ surroundParen parseExpr
-                   , try parseInfix
-                   , try parseFloatLit <|> parseIntLit
+parseExpr = choice [try parseFloatLit
+                   , parseIntLit
                    , try parseProjection
                    , try parseFapp
-                   , parsePrefix
                    , parseIfExpr
                    , try parseAnonFun
+                   , parsePrefix
                    , try parsePostfix
+                   , try parseInfix
                    , parseStrLit
                    , parseBoolLit
+                   ,  surroundParen parseExpr
                    , parseIDExpr
                    ]
 
@@ -145,7 +146,7 @@ parseFapp = postfixChain1 nonLeftRecExpr parseArgs
                      return (\fn -> FApp fn args)
 
 parseProjection :: Parser Expr
-parseProjection = postfixChain1 nonLeftRecExpr parseProj
+parseProjection = postfixChain1 (nonLeftRecExpr) parseProj
     where
       parseProj :: Parser (Expr -> Expr)
       parseProj  = do sat (==Dot)
