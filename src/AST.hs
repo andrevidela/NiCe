@@ -28,7 +28,7 @@ data TypeDecl = SimpleType String
               | PointerType TypeDecl
               | FunctionType TypeDecl [TypeDecl] TypeDecl
                   deriving (Eq, Show)
-data Identifier = Identifier { idName :: String } deriving (Eq, Show)
+newtype Identifier = Identifier { idName :: String } deriving (Eq, Show)
 
 data FArg = FArgument String | WildCardArg deriving (Eq, Show)
 

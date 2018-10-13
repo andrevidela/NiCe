@@ -119,18 +119,17 @@ parseTypeDecl = choice [ try parseFunctionType
 
 -- parse expressions
 parseExpr :: Parser Expr
-parseExpr = choice [try parseFloatLit
-                   , parseIntLit
+parseExpr = choice [ surroundParen parseExpr
+                   , try parseInfix
+                   , try parseFloatLit <|> parseIntLit
                    , try parseProjection
                    , try parseFapp
+                   , parsePrefix
                    , parseIfExpr
                    , try parseAnonFun
-                   , parsePrefix
                    , try parsePostfix
-                   , try parseInfix
                    , parseStrLit
                    , parseBoolLit
-                   ,  surroundParen parseExpr
                    , parseIDExpr
                    ]
 
@@ -146,7 +145,7 @@ parseFapp = postfixChain1 nonLeftRecExpr parseArgs
                      return (\fn -> FApp fn args)
 
 parseProjection :: Parser Expr
-parseProjection = postfixChain1 (nonLeftRecExpr) parseProj
+parseProjection = postfixChain1 nonLeftRecExpr parseProj
     where
       parseProj :: Parser (Expr -> Expr)
       parseProj  = do sat (==Dot)
@@ -272,7 +271,7 @@ parseAssignement = do i <- parseIdent
 
 parseIfStmt :: Parser Statement
 parseIfStmt = do sat (==If)
-                 cond <- surroundParen parseExpr
+                 cond <- parseExpr
                  t <- surroundBrace (many parseStatement)
                  sat (==Else)
                  e <- surroundBrace (many parseStatement)
@@ -280,7 +279,7 @@ parseIfStmt = do sat (==If)
 
 parseWhile :: Parser Statement
 parseWhile = do sat (==TWhile)
-                cond <- surroundParen parseExpr
+                cond <- parseExpr
                 stmts <- surroundBrace (many parseStatement)
                 return $ While cond stmts
 

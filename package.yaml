@@ -1,0 +1,25 @@
+name: nice-language
+
+ghc-options: -Wall -Weverything
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+    dependencies:
+      - hspec
+      - nice-language
+
+executables:
+  nice:
+    main: Main.hs
+    dependencies:
+      - parsec
+      - parsec-numbers
+
+dependencies:
+  - mtl
+  - protolude
+  - parsec
+  - parsec-numbers
