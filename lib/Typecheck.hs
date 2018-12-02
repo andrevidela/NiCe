@@ -1,8 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Typecheck where
 
-import AST
-import Protolude
+import           AST
+import           Protolude
 
 
 type TypecheckError = Text
@@ -35,7 +35,7 @@ data StaticTypeDecl = StructDecl Text [EmptyLet]
                     | EnumDecl Text [Text]
 checkTypeDecl :: StaticTypeDecl -> NiceType
 checkTypeDecl (StructDecl name fields) = undefined
-checkTypeDecl (EnumDecl name cases) = NEnum name $ zip cases [0..]
+checkTypeDecl (EnumDecl name cases)    = NEnum name $ zip cases [0..]
 
 splitDef :: Program -> ([StaticTypeDecl], [LetDecl])
 splitDef = foldl combine ([], [])

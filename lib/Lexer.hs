@@ -1,38 +1,24 @@
 {-# LANGUAGE TupleSections #-}
- 
-module Lexer where
 
-import AbsGrammar
-import Text.Parsec.Prim (runPT, runP, runParserT, runParser)
-import Text.Parsec (ParseError, SourceName, SourcePos)
-import Text.ParserCombinators.Parsec 
-    ( anyChar
-    , char
-    , digit
-    , eof
-    , getPosition
-    , letter
-    , many
-    , many1
-    , manyTill
-    , newline
-    , noneOf
-    , oneOf
-    , skipMany
-    , spaces
-    , string
-    , try
-    , Parser
-    , GenParser
-    , choice
-    , space
-    )
-import Text.Parsec.Number (nat)
-import Control.Applicative ((<*), (*>), (<$>), (<*>), (<|>))
-import Data.Functor (($>))
-import Data.Char (isLetter, isDigit, isSpace)
-import Data.Text (pack, Text)
-import Protolude (toS)
+module Lexer (tokenize, Token(..)) where
+
+import           AbsGrammar
+import           Control.Applicative           ((*>), (<$>), (<*), (<*>), (<|>))
+import           Data.Char                     (isDigit, isLetter, isSpace)
+import           Data.Functor                  (($>))
+import           Data.Text                     (Text, pack)
+import           Protolude                     (toS)
+import           Text.Parsec                   (ParseError, SourceName,
+                                                SourcePos)
+import           Text.Parsec.Number            (nat)
+import           Text.Parsec.Prim              (runP, runPT, runParser,
+                                                runParserT)
+import           Text.ParserCombinators.Parsec (GenParser, Parser, anyChar,
+                                                char, choice, digit, eof,
+                                                getPosition, letter, many,
+                                                many1, manyTill, newline,
+                                                noneOf, oneOf, skipMany, space,
+                                                spaces, string, try)
 
 type TokenPos = (Token, SourcePos)
 
@@ -80,9 +66,10 @@ parseOp :: Parser TokenPos
 parseOp = parsePos $ do
                      ops <- many1 $ oneOf "&|*/-+<>%^=!¬∀∴~\\†∃∵∫√≤≥:•°·⊕§∷$"
                      return . Operator . pack $ ops
+
 parseIDNoUnderscore :: Parser TokenPos
 parseIDNoUnderscore = parsePos $ do
-                                    i <- firstChar 
+                                    i <- firstChar
                                     n <- many nonFirstChar
                                     return . TIdent . pack $ i : n
   where
@@ -99,14 +86,14 @@ parseIDUnderscore = parsePos $ do i <- firstChar
 
 comment :: GenParser Char st ()
 comment =
-    (try (string "//") 
-        >> manyTill anyChar (newline >> return () <|> eof) 
+    (try (string "//")
+        >> manyTill anyChar (newline >> return () <|> eof)
         >> spaces
         >> return ()
-        ) 
-    <|> (string "/*" 
-        >> manyTill anyChar (try (string "*/") >> return () <|> eof) 
-        >> spaces 
+        )
+    <|> (string "/*"
+        >> manyTill anyChar (try (string "*/") >> return () <|> eof)
+        >> spaces
         >> return ()
         )
 -- literals
@@ -131,7 +118,7 @@ parseText = parsePos $ do char '"'
                           strings <- many character
                           char '"'
                           return $ StringLit (pack $ concat strings)
-      
+
 parseInteger :: Parser TokenPos
 parseInteger = parsePos $ TIntLit <$> nat
 -- Whitespace
@@ -203,7 +190,7 @@ parseSpace = parsePos $ many1 space $> Whitespace
 
 token :: Parser TokenPos
 token = skipMany comment *> choice
-    [ 
+    [
       try ifToken
     , try thenToken <|> try trueToken
     , try elseToken <|> enumToken
@@ -272,6 +259,6 @@ tokenize :: SourceName -> Text -> Either ParseError [Token]
 tokenize name text = do result <- parse name (toS text)
                         let tokens = map fst result
                         return $ cleanup tokens
-  where 
+  where
     parse = runParser tokens ()
     cleanup = removeWhitespace . mapOperators . padWhitespace

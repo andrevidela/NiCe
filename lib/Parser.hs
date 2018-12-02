@@ -1,22 +1,26 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TupleSections     #-}
 module Parser where
 
-import AST
-import Lexer
-import Data.List
-import Data.Either
-import Text.Parsec
---import Text.Parsec.Prim
-import Control.Monad
-import Data.Functor.Identity
-import Protolude hiding (many, try, (<|>))
+import           AST
+import           Control.Monad
+import           Data.Either
+import           Data.Functor.Identity
+import           Data.List
+import           Lexer
+import           Protolude             hiding (many, try, (<|>))
+import           Text.Parsec           (Parsec, ParsecT, SourcePos, Stream,
+                                        choice, many, many1, parse, satisfy,
+                                        sepBy, tokenPrim, try, (<|>))
 
 -- General parsing tools
 sat :: (Token -> Bool) -> Parser Token
 sat f = tokenPrim show nextPos testTok
     where
       testTok t     = if f t then Just t else Nothing
-      nextPos p t s = p
+
+nextPos :: SourcePos -> Token -> [Token] -> SourcePos
+nextPos p t s = p
 
 postfixChain :: Parser a -> Parser (a -> a) -> Parser a
 postfixChain p op = do
@@ -37,14 +41,17 @@ postfixChain1 p op = do
 chainl2 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m (a -> a -> a) -> ParsecT s u m a
 chainl2 notLeftRec p op = do x <- notLeftRec
                              f <- op
-                             y <- p
-                             rest (f x y)
+                             parseHelp x f
                     where
-                      rest x    = do{ f <- op
-                                    ; y <- p
-                                    ; rest (f x y)
-                                    } <|> return x
+                      rest x = do { f <- op
+                                  ; parseHelp x f
+                                  } <|> return x
+                      parseHelp x f = do y <- p
+                                         rest (f x y)
+
+commaSeparated :: ParsecT [Token] () Identity a -> ParsecT [Token] () Identity [a]
 commaSeparated = (`sepBy` sat (==Comma))
+
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
 parseEither a b = (Left <$> try a) <|> (Right <$> b)
 
@@ -55,8 +62,7 @@ parseIdent = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Text
       testTok (TIdent str) = Just str
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _            = Nothing
 
 -- Parse Type signatures
 parseSimpleType :: Parser TypeDecl
@@ -70,15 +76,16 @@ singlePrefix :: Parsec Text () TypePrefix
 singlePrefix = mutablePrefix <|> pointerPrefix
 
 mutablePrefix :: Parsec Text () TypePrefix
-mutablePrefix = do satisfy (=='~'); return Mutable
+mutablePrefix = satisfy (=='~') >> return Mutable
 
 pointerPrefix :: Parsec Text () TypePrefix
-pointerPrefix = do satisfy (=='>'); return Pointer
+pointerPrefix = satisfy (=='>')
+                >> return Pointer
 
 combinePrefix :: [TypePrefix] -> TypeDecl -> TypeDecl
 combinePrefix (Mutable : rest) tpe = MutableType (combinePrefix rest tpe)
 combinePrefix (Pointer : rest) tpe = PointerType (combinePrefix rest tpe)
-combinePrefix [] tpe = tpe
+combinePrefix [] tpe               = tpe
 
 magicParsePrefix :: Parser [TypePrefix]
 magicParsePrefix = tokenPrim show nextPos parseTok
@@ -86,22 +93,19 @@ magicParsePrefix = tokenPrim show nextPos parseTok
       parseTok :: Token -> Maybe [TypePrefix]
       parseTok (TPrefix str) = case parse parseTypePrefix "TypePrefixParsing" str of
                                     Right ts -> Just ts
-                                    Left _ -> Nothing
+                                    Left _   -> Nothing
       parseTok _ = Nothing
-      nextPos p t s = p
 
 parseModifiedType :: Parser TypeDecl
 parseModifiedType = do prefix <- magicParsePrefix
-                       typeValue <- parseTypeDeclNoFun
-                       return $ combinePrefix prefix typeValue
+                       combinePrefix prefix <$> parseTypeDeclNoFun
 
 
 parseFunctionType :: Parser TypeDecl
 parseFunctionType = do head <- parseTypeDeclNoFun
                        args <- parseArgs
                        _ <- sat (==RightArrow)
-                       returnType <- parseTypeDecl
-                       return $ FunctionType head args returnType
+                       FunctionType head args <$> parseTypeDecl
   where
     parseArgs = many (sat (==Comma) *> parseTypeDeclNoFun)
 
@@ -112,7 +116,7 @@ parseTypeDeclNoFun = choice [ surroundParen parseTypeDecl
                             ]
 
 parseTypeDecl :: Parser TypeDecl
-parseTypeDecl = choice [ try parseFunctionType 
+parseTypeDecl = choice [ try parseFunctionType
                        , surroundParen parseTypeDecl
                        , parseModifiedType
                        , parseSimpleType
@@ -144,15 +148,13 @@ parseFapp = postfixChain1 nonLeftRecExpr parseArgs
     where
       parseArgs :: Parser (Expr -> Expr)
       parseArgs = do args <- surroundParen (commaSeparated parseExpr)
-                     return (\fn -> FApp fn args)
+                     return (flip FApp args)
 
 parseProjection :: Parser Expr
 parseProjection = postfixChain1 nonLeftRecExpr parseProj
     where
       parseProj :: Parser (Expr -> Expr)
-      parseProj  = do sat (==Dot)
-                      id <- parseIdent 
-                      return (\struct -> Proj struct id)
+      parseProj = sat (==Dot) >> flip Proj <$> parseIdent
 
 nonLeftRecExpr :: Parser Expr
 nonLeftRecExpr = choice [ parsePrefix
@@ -167,46 +169,41 @@ nonLeftRecExpr = choice [ parsePrefix
                         ]
 
 parseFloatLit :: Parser Expr
-parseFloatLit = tokenPrim (show) nextPos testTok
+parseFloatLit = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Expr
       testTok (TFloatLit flt) = Just (FloatLit flt)
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _               = Nothing
 
 parseIntLit :: Parser Expr
-parseIntLit = tokenPrim (show) nextPos testTok
+parseIntLit = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Expr
       testTok (TIntLit int) = Just (IntLit int)
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _             = Nothing
 
 parseBoolLit :: Parser Expr
-parseBoolLit = tokenPrim (show) nextPos testTok
+parseBoolLit = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Expr
-      testTok (TTrue) = Just (BoolLit True)
-      testTok (TFalse) = Just (BoolLit False)
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok TTrue  = Just (BoolLit True)
+      testTok TFalse = Just (BoolLit False)
+      testTok _      = Nothing
 
 parseStrLit :: Parser Expr
-parseStrLit = tokenPrim (show) nextPos testTok
+parseStrLit = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Expr
       testTok (StringLit str) = Just (StrLit str)
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _               = Nothing
 
 parseIfExpr :: Parser Expr
-parseIfExpr = do sat (==If)
+parseIfExpr = do _ <-sat (==If)
                  cond <- parseExpr
-                 sat (==Then)
+                 _ <-sat (==Then)
                  t <- parseExpr
-                 sat (==Else)
-                 e <- parseExpr
-                 return $ IfExpr cond t e
+                 _ <-sat (==Else)
+                 IfExpr cond t <$> parseExpr
 
 parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseFArg
@@ -216,44 +213,40 @@ parseFArg :: Parser FArg
 parseFArg = (FArgument <$> parseIdent) <|> (sat (==Wildcard) >> return WildCardArg)
 
 parseInfix :: Parser Expr
-parseInfix = do chainl2 nonLeftRecExpr parseExpr binaryOp
+parseInfix = chainl2 nonLeftRecExpr parseExpr binaryOp
     where
       binaryOp :: Parser (Expr -> Expr -> Expr)
-      binaryOp = do op <- parseOpInfix
-                    return $ InfixOp op
+      binaryOp = InfixOp <$> parseOpInfix
 
 parsePrefix :: Parser Expr
 parsePrefix = do op <- parseOpPrefix
-                 e <- parseExpr
-                 return $ PrefixOp op e
+                 PrefixOp op <$> parseExpr
 
 parsePostfix :: Parser Expr
 parsePostfix = postfixChain1 nonLeftRecExpr post
     where
-      post = do op <- parseOpPostfix
-                return (flip PostfixOp op)
-  
+      post = flip PostfixOp <$> parseOpPostfix
+
 parseOpInfix :: Parser Text
-parseOpInfix = tokenPrim (show) nextPos testTok
+parseOpInfix = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Text
       testTok (TInfix str) = Just str
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _            = Nothing
+
 parseOpPostfix :: Parser Text
-parseOpPostfix = tokenPrim (show) nextPos testTok
+parseOpPostfix = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Text
       testTok (TPostfix str) = Just str
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _              = Nothing
+
 parseOpPrefix :: Parser Text
-parseOpPrefix = tokenPrim (show) nextPos testTok
+parseOpPrefix = tokenPrim show nextPos testTok
     where
       testTok :: Token -> Maybe Text
       testTok (TPrefix str) = Just str
-      testTok _ = Nothing
-      nextPos p t s = p
+      testTok _             = Nothing
 
 -- parse statements
 parseStatement :: Parser Statement
@@ -267,20 +260,19 @@ parseStatement = choice [ SLet <$> parseLetDecl
 
 parseAssignement :: Parser Statement
 parseAssignement = do i <- parseIdent
-                      sat (==EqualSign)
-                      e <- parseExpr
-                      return $ Assign i e
+                      _ <- sat (==EqualSign)
+                      Assign i <$> parseExpr
 
 parseIfStmt :: Parser Statement
-parseIfStmt = do sat (==If)
+parseIfStmt = do _ <- sat (==If)
                  cond <- parseExpr
                  t <- surroundBrace (many parseStatement)
-                 sat (==Else)
+                 _ <- sat (==Else)
                  e <- surroundBrace (many parseStatement)
-                 return $ IfStmt cond t e 
+                 return $ IfStmt cond t e
 
 parseWhile :: Parser Statement
-parseWhile = do sat (==TWhile)
+parseWhile = do _ <- sat (==TWhile)
                 cond <- parseExpr
                 stmts <- surroundBrace (many parseStatement)
                 return $ While cond stmts
@@ -291,28 +283,26 @@ parseReturn = Return <$> (sat (==TReturn) *> parseExpr)
 parsePlain :: Parser Statement
 parsePlain = Plain <$> parseExpr
 
--- parse Let 
-parseEmptyLet :: Parser EmptyLet
-parseEmptyLet = do _ <- sat (==TLet)
+-- parse Let
+parseLetIdTpe :: Parser (Text, TypeDecl)
+parseLetIdTpe = do _  <- sat (==TLet)
                    id <- parseIdent
-                   _ <- sat (==Colon)
-                   tpe <- parseTypeDecl
-                   return $ EmptyLet id tpe
+                   _  <- sat (==Colon)
+                   (id, ) <$> parseTypeDecl
+
+parseEmptyLet :: Parser EmptyLet
+parseEmptyLet = uncurry EmptyLet <$> parseLetIdTpe
 
 parseExprLet :: Parser ExprLet
-parseExprLet = do _ <- sat (==TLet)
-                  id <- parseIdent
-                  _ <- sat (==Colon)
-                  tpe <- parseTypeDecl
+parseExprLet = do (id, tpe) <- parseLetIdTpe
                   _ <- sat (==EqualSign)
-                  expr <- parseExpr
-                  return $ ExprLet id tpe expr
+                  ExprLet id tpe <$> parseExpr
 
 parseLetDecl :: Parser LetDecl
 parseLetDecl = parseEither parseExprLet parseEmptyLet
 
 parseLet :: Parser Definition
-parseLet = LetDef <$> parseLetDecl 
+parseLet = LetDef <$> parseLetDecl
 
 -- parse Enums
 parseEnumCase :: Parser Text
@@ -321,8 +311,7 @@ parseEnumCase = sat (==Case) *> parseIdent <* sat (==Semi)
 parseEnum :: Parser Definition
 parseEnum = do _ <- sat (==TEnum)
                id <- parseIdent
-               decls <- surroundBrace (many parseEnumCase)
-               return $ (EnumDef id decls)
+               EnumDef id <$> surroundBrace (many parseEnumCase)
 
 -- parse Structs
 parseStruct :: Parser Definition
@@ -345,11 +334,11 @@ surroundParen p = do _ <- sat (==LParen)
                      return v
 
 surroundBrace :: Parser p -> Parser p
-surroundBrace p = do sat (==LBrace)
+surroundBrace p = do _ <- sat (==LBrace)
                      v <- p
-                     sat (==RBrace)
+                     _ <- sat (==RBrace)
                      return v
 
 parseProgram :: Parser Program
-parseProgram = (many $ choice [parseLet, parseStruct, parseEnum]) <* sat (==EOF)
+parseProgram = many (choice [parseLet, parseStruct, parseEnum]) <* sat (==EOF)
 

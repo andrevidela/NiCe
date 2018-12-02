@@ -5,7 +5,7 @@ module Main where
 import AST
 import Parser
 import Lexer
-import Text.Parsec
+import Text.Parsec (SourceName, ParseError, runParser)
 import System.Environment
 import Protolude
 

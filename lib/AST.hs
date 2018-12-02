@@ -2,8 +2,8 @@
 
 module AST where
 
-import Data.List.NonEmpty
-import Protolude
+import           Data.List.NonEmpty
+import           Protolude
 
 type Program = [Definition]
 
@@ -13,7 +13,7 @@ data Definition = LetDef LetDecl
                 deriving (Eq, Show)
 
 type LetDecl = Either ExprLet EmptyLet
-data EmptyLet = EmptyLet 
+data EmptyLet = EmptyLet
   { emptyLetID   :: Text
   , emptyLetType :: TypeDecl
   } deriving (Eq, Show)
@@ -25,7 +25,7 @@ data ExprLet = ExprLet
   , exprLetExpr :: Expr
   } deriving (Eq, Show)
 
-data TypeDecl = SimpleType Text 
+data TypeDecl = SimpleType Text
               | MutableType TypeDecl
               | PointerType TypeDecl
               | FunctionType TypeDecl [TypeDecl] TypeDecl
@@ -34,12 +34,12 @@ newtype Identifier = Identifier { idName :: Text } deriving (Eq, Show)
 
 data FArg = FArgument Text | WildCardArg deriving (Eq, Show)
 
-data Expr = FApp Expr [Expr] 
+data Expr = FApp Expr [Expr]
           | Proj Expr Text
-          | IntLit Int 
+          | IntLit Int
           | FloatLit Float
           | BoolLit Bool
-          | StrLit Text 
+          | StrLit Text
           | IfExpr Expr Expr Expr
           | AnonFun [FArg] [Statement]
           | InfixOp Text Expr Expr
