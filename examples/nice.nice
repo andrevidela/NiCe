@@ -7,7 +7,7 @@
 //
 
 struct List { let value: Int;
-              let tail: List; }
+              let tail: >List; }
 
 let reduce : >List , ~Int -> (Int , Int -> Int) =
     ls acc op {

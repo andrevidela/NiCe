@@ -1,17 +1,38 @@
+{-# LANGUAGE TupleSections #-}
+ 
 module Lexer where
 
 import AbsGrammar
 import Text.Parsec.Prim (runPT, runP, runParserT, runParser)
-import Text.Parsec (ParseError)
-import Text.Parsec.String (Parser)
-import Text.Parsec.Char
-import Control.Monad (void)
+import Text.Parsec (ParseError, SourceName, SourcePos)
+import Text.ParserCombinators.Parsec 
+    ( anyChar
+    , char
+    , digit
+    , eof
+    , getPosition
+    , letter
+    , many
+    , many1
+    , manyTill
+    , newline
+    , noneOf
+    , oneOf
+    , skipMany
+    , spaces
+    , string
+    , try
+    , Parser
+    , GenParser
+    , choice
+    , space
+    )
+import Text.Parsec.Number (nat)
+import Control.Applicative ((<*), (*>), (<$>), (<*>), (<|>))
+import Data.Functor (($>))
 import Data.Char (isLetter, isDigit, isSpace)
-import Text.ParserCombinators.Parsec.Language
-import Text.ParserCombinators.Parsec hiding (token, tokens, runParser)
-import Text.Parsec.Number
-import Control.Applicative ((<*), (*>), (<$>), (<*>))
-import Control.Monad ((>>=))
+import Data.Text (pack, Text)
+import Protolude (toS)
 
 type TokenPos = (Token, SourcePos)
 
@@ -45,42 +66,49 @@ data Token = If
            | RightArrow
            | TIntLit Int
            | TFloatLit Float
-           | StringLit String
+           | StringLit Text
            | DoubleQuote
            | SingleQuote
-           | TIdent String
-           | Operator String
-           | TPrefix String
-           | TInfix String
-           | TPostfix String
+           | TIdent Text
+           | Operator Text
+           | TPrefix Text
+           | TInfix Text
+           | TPostfix Text
                deriving (Show, Eq)
 
 parseOp :: Parser TokenPos
 parseOp = parsePos $ do
                      ops <- many1 $ oneOf "&|*/-+<>%^=!¬∀∴~\\†∃∵∫√≤≥:•°·⊕§∷$"
-                     return (Operator ops)
+                     return . Operator . pack $ ops
 parseIDNoUnderscore :: Parser TokenPos
 parseIDNoUnderscore = parsePos $ do
                                     i <- firstChar 
                                     n <- many nonFirstChar
-                                    return (TIdent (i : n))
+                                    return . TIdent . pack $ i : n
   where
     firstChar = letter
     nonFirstChar = digit <|> char '\'' <|> firstChar
 parseIDUnderscore :: Parser TokenPos
-parseIDUnderscore = parsePos $ do
-                                  i <- firstChar
+parseIDUnderscore = parsePos $ do i <- firstChar
                                   n <- many1 nonFirstChar
-                                  return (TIdent (i : n))
+                                  return $ TIdent (pack (i : n))
   where
-    firstChar = letter <|> char '_'
+    firstChar    = letter <|> char '_'
     nonFirstChar = digit <|> char '\'' <|> firstChar
 
 
 comment :: GenParser Char st ()
 comment =
-    (try (string "//") >> manyTill anyChar ((newline >> return ()) <|> eof) >> spaces >> return ()) <|>
-    (string "/*" >> manyTill anyChar ((try (string "*/") >> return ()) <|> eof) >> spaces >> return ())
+    (try (string "//") 
+        >> manyTill anyChar (newline >> return () <|> eof) 
+        >> spaces
+        >> return ()
+        ) 
+    <|> (string "/*" 
+        >> manyTill anyChar (try (string "*/") >> return () <|> eof) 
+        >> spaces 
+        >> return ()
+        )
 -- literals
 
 parsePos :: Parser Token -> Parser TokenPos
@@ -98,11 +126,11 @@ nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
 character :: Parser String
 character = fmap return nonEscape <|> escape
 
-parseString :: Parser TokenPos
-parseString = parsePos $ do char '"'
-                            strings <- many character
-                            char '"'
-                            return $ StringLit (concat strings)
+parseText :: Parser TokenPos
+parseText = parsePos $ do char '"'
+                          strings <- many character
+                          char '"'
+                          return $ StringLit (pack $ concat strings)
       
 parseInteger :: Parser TokenPos
 parseInteger = parsePos $ TIntLit <$> nat
@@ -111,7 +139,7 @@ eofToken = parsePos $ eof >> return EOF
 eolToken :: Parser TokenPos
 eolToken = parsePos $ many1 (char '\n') >> return EOL
 whitespace :: Parser TokenPos
-whitespace = parsePos $ (many1 space) >> return Whitespace
+whitespace = parsePos $ many1 space >> return Whitespace
 
 -- reserved
 trueToken :: Parser TokenPos
@@ -171,7 +199,7 @@ wildcardToken = parsePos $ string "_" >> return Wildcard
 
 
 parseSpace :: Parser TokenPos
-parseSpace = parsePos $ (many1 space) *> return Whitespace
+parseSpace = parsePos $ many1 space $> Whitespace
 
 token :: Parser TokenPos
 token = skipMany comment *> choice
@@ -199,7 +227,7 @@ token = skipMany comment *> choice
     , dotToken
     , commaToken
     , rightArrowToken
-    , parseString
+    , parseText
     , singleQuoteToken
     , try parseOp
     , try parseIDUnderscore
@@ -208,25 +236,24 @@ token = skipMany comment *> choice
     ] <* skipMany comment
 
 tokens :: Parser [TokenPos]
-tokens = do tkns <- (many token)
+tokens = do tkns <- many token
             eof <- eofToken
             return $ tkns ++ [eof]
 
 mapOperators :: [Token] -> [Token]
-mapOperators (Whitespace : (Operator str) : Whitespace : rest) = (TInfix str) : (mapOperators $ Whitespace : rest)
-mapOperators (Whitespace : (Operator str) : rest) = (TPrefix str) : (mapOperators $ Whitespace : rest)
-mapOperators (LParen : (Operator str) : rest) = LParen : (TPrefix str) : (mapOperators $ Whitespace : rest)
-mapOperators ((Operator str) : Whitespace : rest) = (TPostfix str) : (mapOperators rest)
-mapOperators ((Operator str) : RParen : rest) = (TPostfix str) : RParen : (mapOperators rest)
-mapOperators (x : xs) = x : (mapOperators xs)
+mapOperators (Whitespace : Operator str : Whitespace : rest) = TInfix str : mapOperators (Whitespace : rest)
+mapOperators (Whitespace : Operator str : rest) = TPrefix str : mapOperators (Whitespace : rest)
+mapOperators (LParen : Operator str : rest) = LParen : TPrefix str : mapOperators (Whitespace : rest)
+mapOperators (Operator str : Whitespace : rest) = TPostfix str : mapOperators rest
+mapOperators (Operator str : RParen : rest) = TPostfix str : RParen : mapOperators rest
+mapOperators (x : xs) = x : mapOperators xs
 mapOperators [] = []
 
 removeWhitespace :: [Token] -> [Token]
-removeWhitespace ls = filter (/=Whitespace) ls
+removeWhitespace = filter (/= Whitespace)
 
 padWhitespace :: [Token] -> [Token]
 padWhitespace ls = (Whitespace : ls) ++ [Whitespace]
- 
 
 liftPair :: (a -> b) -> (a, c) -> (b, c)
 liftPair fn (f, s) = (fn f, s)
@@ -236,15 +263,15 @@ infixl 8 |>
 (|>) a f = f a
 
 helper :: Monad m => (m a -> m b) -> (a, c) -> m (b, c)
-helper fn (f, s) = fmap (\b -> (b, s)) $  fn (return f)
+helper fn (f, s) = (, s) <$>  fn (return f)
 
 liftPairM :: Monad m => (m a -> m b) -> m (a, c) -> m (b, c)
-liftPairM fn pair = pair >>= (helper fn)
+liftPairM fn pair = pair >>= helper fn
 
-tokenize :: SourceName -> String -> Either ParseError [Token]
-tokenize name text = do result <- parse name text
+tokenize :: SourceName -> Text -> Either ParseError [Token]
+tokenize name text = do result <- parse name (toS text)
                         let tokens = map fst result
                         return $ cleanup tokens
   where 
-    parse = runParser (tokens ) ()
+    parse = runParser tokens ()
     cleanup = removeWhitespace . mapOperators . padWhitespace

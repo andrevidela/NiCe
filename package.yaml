@@ -1,6 +1,6 @@
-name: nice-language
+name: compiler
 
-ghc-options: -Wall -Weverything
+ghc-options: -Wall
 
 tests:
   spec:
@@ -9,17 +9,22 @@ tests:
       - test
     dependencies:
       - hspec
-      - nice-language
+      - nice
+
+library:
+  source-dirs:
+    - lib/
+  dependencies:
+    - base
+    - semigroups
+    - protolude
+    - parsec
+    - parsec3-numbers
+    - text
 
 executables:
   nice:
-    main: Main.hs
+    main: src/Main.hs
     dependencies:
-      - parsec
-      - parsec-numbers
+      - compiler
 
-dependencies:
-  - mtl
-  - protolude
-  - parsec
-  - parsec-numbers

@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Parser where
 
 import AST
@@ -5,16 +6,15 @@ import Lexer
 import Data.List
 import Data.Either
 import Text.Parsec
-import Text.Parsec.Prim
+--import Text.Parsec.Prim
 import Control.Monad
 import Data.Functor.Identity
--- import Control.Applicative
+import Protolude hiding (many, try, (<|>))
 
 -- General parsing tools
 sat :: (Token -> Bool) -> Parser Token
-sat f = tokenPrim showTok nextPos testTok
+sat f = tokenPrim show nextPos testTok
     where
-      showTok t     = show t
       testTok t     = if f t then Just t else Nothing
       nextPos p t s = p
 
@@ -35,23 +35,25 @@ postfixChain1 p op = do
                    rest $ f x) <|> return x
 
 chainl2 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m (a -> a -> a) -> ParsecT s u m a
-chainl2 notLeftRec p op = do{ x <- notLeftRec; f <- op; y <- p; rest (f x y) }
+chainl2 notLeftRec p op = do x <- notLeftRec
+                             f <- op
+                             y <- p
+                             rest (f x y)
                     where
                       rest x    = do{ f <- op
                                     ; y <- p
                                     ; rest (f x y)
-                                    }
-                                <|> return x
-commaSeparated p = p `sepBy` (sat (==Comma))
+                                    } <|> return x
+commaSeparated = (`sepBy` sat (==Comma))
 parseEither :: Parser a -> Parser b -> Parser (Either a b)
 parseEither a b = (Left <$> try a) <|> (Right <$> b)
 
 type Parser r = Parsec [Token] () r
 
-parseIdent :: Parser String
-parseIdent = tokenPrim (show) nextPos testTok
+parseIdent :: Parser Text
+parseIdent = tokenPrim show nextPos testTok
     where
-      testTok :: Token -> Maybe String
+      testTok :: Token -> Maybe Text
       testTok (TIdent str) = Just str
       testTok _ = Nothing
       nextPos p t s = p
@@ -61,16 +63,16 @@ parseSimpleType :: Parser TypeDecl
 parseSimpleType = SimpleType <$> parseIdent
 
 data TypePrefix = Mutable | Pointer deriving (Show, Eq)
-parseTypePrefix :: Parsec [Char] () [TypePrefix]
+parseTypePrefix :: Parsec Text () [TypePrefix]
 parseTypePrefix = many1 singlePrefix
 
-singlePrefix :: Parsec [Char] () TypePrefix
+singlePrefix :: Parsec Text () TypePrefix
 singlePrefix = mutablePrefix <|> pointerPrefix
 
-mutablePrefix :: Parsec [Char] () TypePrefix
+mutablePrefix :: Parsec Text () TypePrefix
 mutablePrefix = do satisfy (=='~'); return Mutable
 
-pointerPrefix :: Parsec [Char] () TypePrefix
+pointerPrefix :: Parsec Text () TypePrefix
 pointerPrefix = do satisfy (=='>'); return Pointer
 
 combinePrefix :: [TypePrefix] -> TypeDecl -> TypeDecl
@@ -99,7 +101,7 @@ parseFunctionType = do head <- parseTypeDeclNoFun
                        args <- parseArgs
                        _ <- sat (==RightArrow)
                        returnType <- parseTypeDecl
-                       return $ FunctionType head (args) returnType
+                       return $ FunctionType head args returnType
   where
     parseArgs = many (sat (==Comma) *> parseTypeDeclNoFun)
 
@@ -229,26 +231,26 @@ parsePostfix :: Parser Expr
 parsePostfix = postfixChain1 nonLeftRecExpr post
     where
       post = do op <- parseOpPostfix
-                return (\e -> PostfixOp e op)
+                return (flip PostfixOp op)
   
-parseOpInfix :: Parser String
+parseOpInfix :: Parser Text
 parseOpInfix = tokenPrim (show) nextPos testTok
     where
-      testTok :: Token -> Maybe String
+      testTok :: Token -> Maybe Text
       testTok (TInfix str) = Just str
       testTok _ = Nothing
       nextPos p t s = p
-parseOpPostfix :: Parser String
+parseOpPostfix :: Parser Text
 parseOpPostfix = tokenPrim (show) nextPos testTok
     where
-      testTok :: Token -> Maybe String
+      testTok :: Token -> Maybe Text
       testTok (TPostfix str) = Just str
       testTok _ = Nothing
       nextPos p t s = p
-parseOpPrefix :: Parser String
+parseOpPrefix :: Parser Text
 parseOpPrefix = tokenPrim (show) nextPos testTok
     where
-      testTok :: Token -> Maybe String
+      testTok :: Token -> Maybe Text
       testTok (TPrefix str) = Just str
       testTok _ = Nothing
       nextPos p t s = p
@@ -313,7 +315,7 @@ parseLet :: Parser Definition
 parseLet = LetDef <$> parseLetDecl 
 
 -- parse Enums
-parseEnumCase :: Parser String
+parseEnumCase :: Parser Text
 parseEnumCase = sat (==Case) *> parseIdent <* sat (==Semi)
 
 parseEnum :: Parser Definition
