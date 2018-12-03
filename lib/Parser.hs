@@ -7,6 +7,7 @@ import           Control.Monad
 import           Data.Either
 import           Data.Functor.Identity
 import           Data.List
+import           Data.List.NonEmpty
 import           Lexer
 import           Protolude             hiding (many, try, (<|>))
 import           Text.Parsec           (Parsec, ParsecT, SourcePos, Stream,
@@ -105,7 +106,7 @@ parseFunctionType :: Parser TypeDecl
 parseFunctionType = do head <- parseTypeDeclNoFun
                        args <- parseArgs
                        _ <- sat (==RightArrow)
-                       FunctionType head args <$> parseTypeDecl
+                       FunctionType (head :| args) <$> parseTypeDecl
   where
     parseArgs = many (sat (==Comma) *> parseTypeDeclNoFun)
 

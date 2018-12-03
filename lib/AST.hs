@@ -28,7 +28,8 @@ data ExprLet = ExprLet
 data TypeDecl = SimpleType Text
               | MutableType TypeDecl
               | PointerType TypeDecl
-              | FunctionType TypeDecl [TypeDecl] TypeDecl
+              -- function types have at least one argument type
+              | FunctionType (NonEmpty TypeDecl) TypeDecl
                   deriving (Eq, Show)
 newtype Identifier = Identifier { idName :: Text } deriving (Eq, Show)
 

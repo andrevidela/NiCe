@@ -16,6 +16,7 @@ library:
     - lib/
   dependencies:
     - base
+    - containers
     - semigroups
     - protolude
     - parsec
