@@ -4,7 +4,7 @@
 module Backend.CCodegen where
 
 import Backend.CAST
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.Leijen (Doc, comma, encloseSep, indent, lbrace, rbrace, linebreak, lparen, rparen, parens, semi, text, tupled, vsep, (<+>), (<>))
 import Backend.CTypes
 import Protolude
 
@@ -21,9 +21,19 @@ ttrace = trace
 star :: Doc
 star = text "*"
 
+sem :: Doc
+sem = text ";"
+
+equal :: Doc
+equal = text "="
+
+cblock :: [Doc] -> Doc
+cblock lines = lbrace <> linebreak <> indent 4 (vsep lines) <> linebreak <> rbrace
+
 -- Given a C type and its identifier generate the
 generateTypedIdentifier :: CType -> Maybe Text -> Doc
-generateTypedIdentifier (NamedType name) id = textToDoc name
+generateTypedIdentifier (NamedType name) (Just id) = textToDoc name <+> textToDoc id
+generateTypedIdentifier (NamedType name) Nothing = textToDoc name
 
 generateTypedIdentifier (CPointer tpe)   (Just id) = generateType tpe <+> text "*" <+> textToDoc id
 
@@ -52,29 +62,23 @@ generateExpr (FunctionCall f args) = textToDoc f <> tupled (map generateExpr arg
 generateExpr (CIdentifier name) = textToDoc name
 
 generateStatement :: CStatement -> Doc
-generateStatement (CWhile test body) = undefined
-generateStatement (VariableDecl name tpe) = undefined
-generateStatement (VariableAssign name val) = undefined
+generateStatement (CWhile test body) = text "while" <> parens (generateExpr test) <+>
+  cblock ((<> sem) . generateStatement <$> body)
+generateStatement (VariableDecl name tpe) = generateTypedIdentifier tpe (Just name)
+generateStatement (VariableAssign name val) = textToDoc name <+> text "=" <+> generateExpr val
 generateStatement (ExprAsStatment expr) = generateExpr expr
 
-sem :: Doc
-sem = text ";"
 
-equal :: Doc
-equal = text "="
 
 generateDecl :: CDeclaration -> Doc
 generateDecl (StructDeclaration name fields) =
-  text "struct" <+> text (toS name) <+> text "{" <+>
-      indent 4 (generateStructFields fields)
-  <+> text "}"
+  text "struct" <+> text (toS name) <+> cblock [generateStructFields fields]
 generateDecl (EnumDeclaration name values) = undefined
 generateDecl (GlobalVarDeclaration name tpe value) =
   generateTypedIdentifier tpe (Just name) <+> text "=" <+> text (toS name) <> semi
 generateDecl (FunctionDeclaration name ret args body) =
   (generateType ret) <+> textToDoc name <> tupled (map (uncurry generateTypedIdentifier . swap . justFirst) args)
-    <+> lbrace <> linebreak <> indent 4 (vsep $ map ((<> sem) . generateStatement) body)
-    <> linebreak <> rbrace
+    <+> cblock (map ((<> sem) . generateStatement) body)
     where
       justFirst :: (a, b) -> (Maybe a, b)
       justFirst (a, b) = (Just a, b)

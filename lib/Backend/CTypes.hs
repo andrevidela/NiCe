@@ -20,10 +20,15 @@ data CExpr = CInt Int
            | FunctionCall Text [CExpr]
            | CIdentifier Text
 
-data CStatement = CWhile CExpr [CStatement]
-                | VariableDecl Text CType
-                | VariableAssign Text CExpr
-                | ExprAsStatment CExpr
+data CStatement
+  -- test, body
+  = CWhile CExpr [CStatement]
+  -- name and type
+  | VariableDecl Text CType
+  -- name, type, value
+  | VariableAssign Text CExpr
+  -- and expression with a side effect, returns void
+  | ExprAsStatment CExpr
 
 
 -- Top level declaration in C
@@ -42,6 +47,13 @@ data CDeclaration
 data CProgram = CProgram [CDeclaration]
 
 test :: CProgram
-test = CProgram [FunctionDeclaration "main" CUnit [("args", CPointer (NamedType "char"))]
-                [ ExprAsStatment $ FunctionCall "printf" [CText "hello world"] ]]
+test = CProgram [ FunctionDeclaration "main" CUnit [("args", CPointer (NamedType "char"))]
+                  [ CWhile (CInt 1)
+                    [ ExprAsStatment $ FunctionCall "printf" [CText "hello world"]
+                    , VariableDecl "i" (NamedType "int")
+                    , VariableAssign "i" (CInt 3)
+                    ]
+                  ]
+                ]
+
 

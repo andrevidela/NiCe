@@ -38,8 +38,9 @@ compileStatment :: TypedStatement -> [CStatement]
 compileStatment (WrapTypedExpr expr) = [ ExprAsStatment (compileExpr expr) ]
 compileStatment (TypedLet name (StackType letType) (TypedFCall fnName _ args)) =
   compileStructInit name fnName (NamedType letType) args
-compileStatment (TypedLet name varType expr) = [ VariableDecl name (compileType varType)
-                                               , VariableAssign name (compileExpr expr) ]
+compileStatment (TypedLet name varType expr) =
+  [ VariableDecl name (compileType varType)
+  , VariableAssign name (compileExpr expr) ]
 
 getReturnType :: ResolvedType -> CType
 getReturnType = undefined
@@ -48,6 +49,7 @@ compileDecl :: TypedDeclaration -> CDeclaration
 -- Compiling a function to the top level
 compileDecl (TypedLetDecl name tpe (Just (TypedLambda _ args body))) =
   FunctionDeclaration name (getReturnType tpe) [] (body >>= compileStatment)
+
 compileDecl (TypedLetDecl name tpe val) = GlobalVarDeclaration name (compileType tpe) (compileExpr <$> val)
 compileDecl (TypedEnum name fields) = EnumDeclaration name fields
 compileDecl (TypedStruct name fields) = StructDeclaration name (mapSnd compileType fields)
