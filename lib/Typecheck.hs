@@ -75,10 +75,10 @@ matches (MutableType lhs) (Mut rhs) n = matches lhs rhs n
 matches (FunctionType argsl retl) (NFunc argsr retr) name =
     checkArgs name (toList argsl) (toList argsr) <|> matches retl retr name
     where checkArgs :: Text -> [TypeDecl] -> [NiceType] -> Maybe TypecheckError
-          checkArgs _ [] [] = Nothing
-          checkArgs name (l : ls) (r : rs) = matches l r name <|> checkArgs name ls rs
-          checkLength name l r | length l == length r = Nothing
-                               | otherwise = Just $ argumentLengthError name (length l) (length r)
+          checkArgs _ (l : ls) (r : rs) = matches l r name <|> checkArgs name ls rs
+          checkArgs _ _ _ = Nothing
+          checkLength _ l r | length l == length r = Nothing
+                            | otherwise = Just $ argumentLengthError name (length l) (length r)
 matches lhs rhs name = Just $ typeMismatch name lhs rhs
 
 argumentLengthError :: Text -> Int -> Int -> TypecheckError
