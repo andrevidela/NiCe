@@ -82,17 +82,17 @@ matches (FunctionType argsl retl) (NFunc argsr retr) name =
 matches lhs rhs name = Just $ typeMismatch name lhs rhs
 
 argumentLengthError :: Text -> Int -> Int -> TypecheckError
-argumentLengthError fn expected actual = "Function '" <> fn 
+argumentLengthError fn expected actual = "Function '" <> fn
     <> "' expects " <> show expected <> " arguments, but got "
     <> show actual <> " instead."
 
 typeMismatch :: Text -> TypeDecl -> NiceType -> TypecheckError
-typeMismatch name expected actual = "Type mismatch for variable '" <> name 
+typeMismatch name expected actual = "Type mismatch for variable '" <> name
     <> "' expected type '" <> show expected
     <> "' but got type '" <> show actual <> "' instead."
 
 checkLetBinding :: Environement -> ExprLet -> Either TypecheckError CheckedLet
-checkLetBinding e (ExprLet name tpe expr) = maybe 
+checkLetBinding e (ExprLet name tpe expr) = maybe
     (Right . VerboseLet name . ExplicitType $ declToNice e tpe)
     Left
     ((tpe `matches` fromInf (inferExpr e expr)) name)
