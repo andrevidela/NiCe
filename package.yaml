@@ -1,4 +1,4 @@
-name: compiler
+name: pylon
 
 ghc-options: -Wall
 
@@ -8,8 +8,11 @@ tests:
     source-dirs:
       - test
     dependencies:
+      - base
       - hspec
-      - nice
+      - pylon
+      - parsec
+      - protolude
 
 library:
   source-dirs:
@@ -28,5 +31,8 @@ executables:
   nice:
     main: src/Main.hs
     dependencies:
-      - compiler
+      - pylon
+      - base
+      - protolude
+      - parsec
 

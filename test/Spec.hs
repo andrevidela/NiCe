@@ -1,7 +1,9 @@
-
+{-# LANGUAGE NoImplicitPrelude #-}
 module Main where
 
 import Test.Hspec
+import ParseSpec
+import Protolude
 
 main :: IO ()
-main = hspec spec
+main = hspec letSpec

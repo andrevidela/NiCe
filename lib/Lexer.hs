@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Lexer (tokenize, Token(..)) where
 
@@ -7,7 +8,7 @@ import           Control.Applicative           ((*>), (<$>), (<*), (<*>), (<|>))
 import           Data.Char                     (isDigit, isLetter, isSpace)
 import           Data.Functor                  (($>))
 import           Data.Text                     (Text, pack)
-import           Protolude                     (toS)
+import           Protolude                     (IsString, StringConv, toS)
 import           Text.Parsec                   (ParseError, SourceName,
                                                 SourcePos)
 import           Text.Parsec.Number            (nat)
@@ -19,6 +20,7 @@ import           Text.ParserCombinators.Parsec (GenParser, Parser, anyChar,
                                                 many1, manyTill, newline,
                                                 noneOf, oneOf, skipMany, space,
                                                 spaces, string, try)
+import           GHC.Base                      (String)
 
 type TokenPos = (Token, SourcePos)
 
@@ -255,7 +257,7 @@ helper fn (f, s) = (, s) <$>  fn (return f)
 liftPairM :: Monad m => (m a -> m b) -> m (a, c) -> m (b, c)
 liftPairM fn pair = pair >>= helper fn
 
-tokenize :: SourceName -> Text -> Either ParseError [Token]
+tokenize :: (StringConv s GHC.Base.String, IsString s) => SourceName -> s -> Either ParseError [Token]
 tokenize name text = do result <- parse name (toS text)
                         let tokens = map fst result
                         return $ cleanup tokens

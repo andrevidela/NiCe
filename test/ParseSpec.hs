@@ -1,12 +1,18 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module ParseSpec where
 
 import Test.Hspec
 import Parser
+import Parser.Utils
+import Lexer
 import AST
 import Text.Parsec
-import Main
+import Protolude
 
-testParseProgram :: String -> Either ParseError Program
+testParseProgram :: Text -> Either ParseError Program
 testParseProgram = parseAll "test"
 
 isSuccess :: Either a b -> Bool
@@ -21,6 +27,9 @@ infixl 1 <|
 (<|) :: a -> (a -> b) -> b
 (<|) a f = f a
 
+testParser :: Parser a -> Text -> Either ParseError a
+testParser p string = do tokens <- tokenize "test" string
+                         runParser p () "test" tokens
 letSpec :: Spec
 letSpec = do
   describe "general parsing" $ do
@@ -47,26 +56,26 @@ letSpec = do
              Right [StructDef "List" [EmptyLet {emptyLetID = "value1", emptyLetType = SimpleType "Int"}]]
   describe "functionParsing" $ do
       it "should parse simple function signatures" $
-        testParser parseTypeDecl "Int -> Int" `shouldBe` 
-          Right (FunctionType (SimpleType "Int") [] (SimpleType "Int"))
+        testParser parseTypeDecl "Int -> Int" `shouldBe`
+          Right (FunctionType (SimpleType "Int" :| []) (SimpleType "Int"))
       it "should parse function signatures with modified return type" $
-        testParser parseTypeDecl "Int -> ~Int" `shouldBe` 
-          Right (FunctionType (SimpleType "Int") [] (MutableType (SimpleType "Int")))
+        testParser parseTypeDecl "Int -> ~Int" `shouldBe`
+          Right (FunctionType (SimpleType "Int" :| []) (MutableType (SimpleType "Int")))
       it "should parse function signatures with modified types" $
-        testParser parseTypeDecl "~Int -> ~Int" `shouldBe` 
-          Right (FunctionType (MutableType (SimpleType "Int")) [] (MutableType (SimpleType "Int")))
+        testParser parseTypeDecl "~Int -> ~Int" `shouldBe`
+          Right (FunctionType (MutableType (SimpleType "Int") :| []) (MutableType (SimpleType "Int")))
       it "should parse complex function signatures" $
         testParser parseTypeDecl "~>~Int, ~Int -> >(~Int, >Char -> >>Int)" `shouldBe`
-          Right (FunctionType (MutableType (PointerType (MutableType (SimpleType "Int"))))
-                [MutableType (SimpleType "Int")]
-                (PointerType (FunctionType (MutableType (SimpleType "Int"))
-                                           [PointerType (SimpleType "Char")]
+          Right (FunctionType (MutableType (PointerType (MutableType (SimpleType "Int"))) :|
+                [MutableType (SimpleType "Int")])
+                (PointerType (FunctionType (MutableType (SimpleType "Int") :|
+                                           [PointerType (SimpleType "Char")])
                                            (PointerType (PointerType (SimpleType "Int")))))
                 )
       it "should parse nested function signatures" $
         testParser parseTypeDecl "Int , (Int -> Int) -> Int" `shouldBe`
-          Right (FunctionType (SimpleType "Int") 
-                              [FunctionType (SimpleType "Int") [] (SimpleType "Int")]
+          Right (FunctionType (SimpleType "Int" :|
+                              [FunctionType (SimpleType "Int" :| []) (SimpleType "Int")])
                               (SimpleType "Int"))
       it "should parse anonymous functions" $
         testParser parseAnonFun "a b { return c; }" <| shouldSucceed
@@ -79,8 +88,8 @@ letSpec = do
       it "shoud parse return statements" $
         testParser parseReturn "return \"kek\"" <| shouldSucceed
   describe "expression parsing" $ do
-      it "should parse functions with wildcard args" $ do 
-        testParser parseExpr "_ acc { acc + 1; }" `shouldBe` 
+      it "should parse functions with wildcard args" $ do
+        testParser parseExpr "_ acc { acc + 1; }" `shouldBe`
           Right (AnonFun [WildCardArg, FArgument "acc"] [Plain (InfixOp "+" (PlainIdent "acc") (IntLit 1)) ])
       it "should parse prefix expressions" $
         testParser parseExpr ">a" `shouldBe` Right (PrefixOp ">" (PlainIdent "a"))
@@ -115,10 +124,10 @@ letSpec = do
         testParser parseExpr "if a then b else c" `shouldBe`
           Right (IfExpr (PlainIdent "a") (PlainIdent "b") (PlainIdent "c"))
       it "should parse infix expressions" $
-        testParser parseExpr "true != false" `shouldBe` 
+        testParser parseExpr "true != false" `shouldBe`
           Right (InfixOp "!=" (BoolLit True) (BoolLit False))
       it "should parse infix expressions" $
-        testParser parseExpr "true == false" `shouldBe` 
+        testParser parseExpr "true == false" `shouldBe`
           Right (InfixOp "==" (BoolLit True) (BoolLit False))
   describe "statement parsing" $ do
       it "should parse assignments" $
@@ -136,18 +145,18 @@ letSpec = do
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
   describe "others" $ do
-      it "should ignore line comments" $ 
+      it "should ignore line comments" $
         testParseProgram "let a: b//test comment\nlet a: b" `shouldBe`
-          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) 
+          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))
                  , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
 
-      it "should ignore line comments at end of program" $ 
-        testParseProgram "let a: b//test comment" `shouldBe` 
+      it "should ignore line comments at end of program" $
+        testParseProgram "let a: b//test comment" `shouldBe`
           (Right [LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
 
-      it "should ignore multi line comments" $ 
+      it "should ignore multi line comments" $
         testParseProgram "let a: b/*test comment\nnext line comment */\nlet a: b" `shouldBe`
-          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"})) 
+          (Right [ LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))
                  , LetDef (Right (EmptyLet {emptyLetID = "a", emptyLetType = SimpleType "b"}))])
   describe "Whole programs" $ do
       it "should parse a whole program" $
@@ -167,8 +176,7 @@ letSpec = do
         testParseProgram "let reduce : >List , ~Int -> (Int , Int -> Int)" `shouldBe`
           Right [LetDef (Right (
             EmptyLet { emptyLetID = "reduce"
-                     , emptyLetType = FunctionType (PointerType (SimpleType "List")) 
-                                                   [MutableType (SimpleType "Int")]
-                                                   (FunctionType (SimpleType "Int") 
-                                                                 [SimpleType "Int"] 
-                                                                 (SimpleType "Int"))}))]
+                     , emptyLetType =
+  FunctionType (PointerType (SimpleType "List") :| [MutableType (SimpleType "Int")])
+               (FunctionType (SimpleType "Int" :| [SimpleType "Int"])
+                             (SimpleType "Int"))}))]
