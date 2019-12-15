@@ -89,12 +89,12 @@ parseIDUnderscore = parsePos $ do i <- firstChar
 comment :: GenParser Char st ()
 comment =
     (try (string "//")
-        >> manyTill anyChar (newline >> return () <|> eof)
+        >> manyTill anyChar ((newline >> return ()) <|> eof)
         >> spaces
         >> return ()
         )
     <|> (string "/*"
-        >> manyTill anyChar (try (string "*/") >> return () <|> eof)
+        >> manyTill anyChar (try ((string "*/") >> return ()) <|> eof)
         >> spaces
         >> return ()
         )
@@ -191,7 +191,7 @@ parseSpace :: Parser TokenPos
 parseSpace = parsePos $ many1 space $> Whitespace
 
 token :: Parser TokenPos
-token = skipMany comment *> choice
+token = (try (skipMany comment)) *> choice
     [
       try ifToken
     , try thenToken <|> try trueToken

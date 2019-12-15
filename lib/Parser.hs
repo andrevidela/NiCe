@@ -210,6 +210,7 @@ parseAnonFun :: Parser Expr
 parseAnonFun = do args <- many parseFArg
                   stmts <- surroundBrace $ many parseStatement
                   return $ AnonFun args stmts
+
 parseFArg :: Parser FArg
 parseFArg = (FArgument <$> parseIdent) <|> (sat (==Wildcard) >> return WildCardArg)
 

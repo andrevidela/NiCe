@@ -108,6 +108,11 @@ letSpec = do
           Right [LetDef (Left (ExprLet { exprLetID = "a"
                                        , exprLetType = SimpleType "b"
                                        , exprLetExpr = (AnonFun [] [])}))]
+      it "should parse complex lambda declarations" $
+        testParseProgram "let a : b -> c = arg { }" `shouldBe`
+          Right [LetDef (Left (ExprLet { exprLetID = "a"
+                                       , exprLetType = FunctionType (SimpleType "b" :| []) (SimpleType "c")
+                                       , exprLetExpr = (AnonFun [FArgument "arg"] [])}))]
       it "should parse simple lambda declarations" $
         testParseProgram "let a : b = { print(3); }" `shouldBe`
           Right [LetDef (Left (ExprLet { exprLetID = "a"
@@ -161,17 +166,25 @@ letSpec = do
   describe "Whole programs" $ do
       it "should parse a whole program" $
         testParseProgram "\
-        \struct List { let value: Int;\n\
-        \              let tail: List; }\n\n\
+        \struct List { let value: Int;                     \n\
+        \              let tail: List;}                    \n\n\
         \let reduce : >List , ~Int -> (Int , Int -> Int) = \n\
-        \  ls acc op { \n\
-        \    let curr : ~>List = acc; \n\
-        \    while curr /= NULL { \n\
-        \      /*acc = op(ls>.value); \n\
-        \      curr = curr>.tail; */\n\
-        \    }; \n\
-        \    return acc; \n\
+        \  ls acc op {                                     \n\
+        \    let curr : ~>List = acc;                      \n\
+        \    while curr != NULL {                          \n\
+        \      /*acc = op(ls>.value);                      \n\
+        \      curr = curr>.tail; */                       \n\
+        \    };                                            \n\
+        \    return acc;                                   \n\
         \  }" <| shouldSucceed
+      it "should parse complex lambda declarations" $
+        testParseProgram "let accumulate : Unit = ls acc op { \n\
+          \    let curr : ~>List = acc;   \n\
+          \    while curr != NULL {       \n\
+          \        acc = op(ls>.value);   \n\
+          \        curr = curr>.tail;     \n\
+          \    };                         \n\
+          \}" <| shouldSucceed
       it "should parse complex signatures" $
         testParseProgram "let reduce : >List , ~Int -> (Int , Int -> Int)" `shouldBe`
           Right [LetDef (Right (
