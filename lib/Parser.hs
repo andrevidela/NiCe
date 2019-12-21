@@ -140,6 +140,20 @@ parseExpr = choice [ surroundParen parseExpr
                    , parseIDExpr
                    ]
 
+parseExprNoLambda :: Parser Expr
+parseExprNoLambda = choice [ surroundParen parseExpr
+                   , try parseInfix
+                   , try parseFloatLit <|> parseIntLit
+                   , try parseProjection
+                   , try parseFapp
+                   , parsePrefix
+                   , parseIfExpr
+                   , try parsePostfix
+                   , parseStrLit
+                   , parseBoolLit
+                   , parseIDExpr
+                   ]
+
 parseIDExpr :: Parser Expr
 parseIDExpr = PlainIdent <$> parseIdent
 
@@ -200,7 +214,7 @@ parseStrLit = tokenPrim show nextPos testTok
 
 parseIfExpr :: Parser Expr
 parseIfExpr = do _ <-sat (==If)
-                 cond <- parseExpr
+                 cond <- parseExprNoLambda
                  _ <-sat (==Then)
                  t <- parseExpr
                  _ <-sat (==Else)
@@ -275,7 +289,7 @@ parseIfStmt = do _ <- sat (==If)
 
 parseWhile :: Parser Statement
 parseWhile = do _ <- sat (==TWhile)
-                cond <- parseExpr
+                cond <- try parseExprNoLambda
                 stmts <- surroundBrace (many parseStatement)
                 return $ While cond stmts
 

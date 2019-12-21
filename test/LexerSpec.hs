@@ -126,6 +126,9 @@ lexSpec = do
         \    };                                            \n\
         \    return acc;                                   \n\
         \  }" <| shouldSucceed
+      it "should lex multiArg lambda declarations" $
+        testLexer "let fn = a b c { return a }" `shouldBe`
+        (Right [TLet, TIdent "fn", EqualSign, TIdent "a", TIdent "b", TIdent "c", LBrace, TReturn, TIdent "a", RBrace, EOF])
       it "should lex complex lambda declarations" $
         testLexer "let accumulate : Unit = ls acc op { \n\
           \    let curr : ~>List = acc;   \n\

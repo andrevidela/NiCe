@@ -191,7 +191,7 @@ parseSpace :: Parser TokenPos
 parseSpace = parsePos $ many1 space $> Whitespace
 
 token :: Parser TokenPos
-token = (try (skipMany comment)) *> choice
+token = ((skipMany comment)) *> choice
     [
       try ifToken
     , try thenToken <|> try trueToken

@@ -43,6 +43,11 @@ letSpec = do
              Right [LetDef (Left (ExprLet { exprLetID = "a"
                                           , exprLetType = SimpleType "type"
                                           , exprLetExpr = IntLit 3}))]
+         it "should parse lets with Lambda" $
+           testParseProgram "let a : type = a b { }" `shouldBe`
+             Right [LetDef (Left (ExprLet { exprLetID = "a"
+                                          , exprLetType = SimpleType "type"
+                                          , exprLetExpr = AnonFun [FArgument "a", FArgument "b"] []}))]
          it "should parse lets with infix expressions" $
            testParseProgram "let a: b = c * d"  <| shouldSucceed
          it "should parse function Expressions" $
@@ -84,6 +89,10 @@ letSpec = do
           Right (FApp (AnonFun [FArgument "a"] [Return (PlainIdent "a")]) [PlainIdent "c"])
   describe "statement parsing" $ do
       it "should parse while statements" $
+        testParser parseWhile "while a != f(b) { sideEffect(); return 3 + 5;}" `shouldBe`
+          Right (While (InfixOp "!=" (PlainIdent "a") (FApp (PlainIdent "f") [PlainIdent "b"]))
+                       [Plain (FApp (PlainIdent "sideEffect") []), Return (InfixOp "+" (IntLit 3) (IntLit 5))])
+      it "should parse while statements2" $
         testParser parseWhile "while a == f(b) { return false; }" <| shouldSucceed
       it "shoud parse return statements" $
         testParser parseReturn "return \"kek\"" <| shouldSucceed
@@ -144,11 +153,13 @@ letSpec = do
         testParser parseExpr "a b { }" `shouldBe` Right (AnonFun [FArgument "a", FArgument "b"]
                                                                  [])
       it "should parse lambdas with  if statements" $
-        testParser parseExpr  "args { if true { print(b);} else { print(b); }; }" `shouldBe`
-          Right (AnonFun [FArgument "args"]
+        testParser parseExpr  "args b { if true { print(b);} else { print(b); }; }" `shouldBe`
+          Right (AnonFun [FArgument "args", FArgument "b"]
                          [IfStmt (BoolLit True)
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]
                                  [Plain $ FApp (PlainIdent "print") [PlainIdent "b"]]])
+      it "should parse while with  if statements" $
+        testParser parseWhile  "while b { if true { print(b); } else { print(b); }; }" <| shouldSucceed
   describe "others" $ do
       it "should ignore line comments" $
         testParseProgram "let a: b//test comment\nlet a: b" `shouldBe`
